@@ -1,0 +1,4 @@
+res://Objects/milk.tres
+res://scenes/cheeseRoom.tscn
+res://scripts/dResourceScript.gd
+res://scripts/plateScript.gd
