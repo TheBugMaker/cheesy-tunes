@@ -1,0 +1,53 @@
+processes:
+ingredients:
+  - milk
+  - acid
+  - salt
+  - bacteria culture
+  - white mold
+  - rennet
+cheese:
+  paneer:
+    ingredients:
+      - milk
+      - acid
+    process:
+  cream cheese:
+    ingredients:
+      - milk
+      - salt
+      - bacteria culture
+    process:
+  Comte:
+    ingredients:
+      - milk
+      - bacteria culture
+      - rennet
+      - salt
+    process:
+  Mozzarella:
+    ingredients:
+      - milk
+      - acid
+      - rennet
+      - salt
+    process:
+  brie:
+    ingredients:
+      - milk
+      - salt
+      - rennet
+      - bacteria culture
+      - white mold
+    process:
+  roquefort:
+    ingredients:
+      - milk
+      - salt
+      - rennet
+      - bacteria culture
+      - blue mold
+    process:
+  taleggio:
+    ingredients:
+    process:
