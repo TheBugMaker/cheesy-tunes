@@ -27,12 +27,12 @@ const LEVELS: Array = [
 		"flavor": "You have some light orders coming in.\nThe smell of warm milk fills the air.",
 		"ingredients": ["milk", "acid", "salt", "bacteria"],
 		"orders": [
-			["Paneer", 0.0,  60.0],
-			["Paneer", 15.0, 60.0],
-			["Cream Cheese",     22.0, 60.0],
-			["Paneer",     26.0, 60.0],
-			["Cream Cheese",     32.0, 60.0],
-			["Paneer",     37.0, 55.0],
+			["Mozzarella", 0.0,  60.0],
+			["Mozzarella", 15.0, 60.0],
+			["Paneer",     22.0, 60.0],
+			["Mozzarella",     26.0, 60.0],
+			["Paneer",     32.0, 60.0],
+			["Mozzarella",     37.0, 55.0],
 		],
 	},
 	{
