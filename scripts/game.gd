@@ -382,6 +382,18 @@ func _build_overlay() -> void:
 	restart_btn.pressed.connect(restart)
 	box.add_child(restart_btn)
 
+	var menu_btn := Button.new()
+	menu_btn.text = "Main Menu"
+	menu_btn.custom_minimum_size = Vector2(200, 48)
+	menu_btn.add_theme_font_override("font", GAME_FONT)
+	menu_btn.add_theme_font_size_override("font_size", 20)
+	menu_btn.pressed.connect(_on_return_to_menu)
+	box.add_child(menu_btn)
+
+
+func _on_return_to_menu() -> void:
+	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+
 
 func _make_label(text: String, font_size: int) -> Label:
 	var lbl := Label.new()
