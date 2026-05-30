@@ -37,7 +37,7 @@ const LEVELS: Array = [
 	},
 	{
 		"flavor": "Word spreads.\nA local distributor wants more of the good stuff.\nThe morning shift feels longer than it should.",
-		"ingredients": ["milk", "acid", "salt", "rennet", "bacteria culture"],
+		"ingredients": ["milk", "acid", "salt", "rennet", "bacteria"],
 		"orders": [
 			["Mozzarella", 0.0,  50.0],
 			["Mozzarella",    10.0, 50.0],
