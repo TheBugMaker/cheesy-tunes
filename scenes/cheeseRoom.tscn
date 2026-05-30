@@ -20,6 +20,14 @@ position = Vector2(549, 73.99997)
 scale = Vector2(0.5646387, 0.14967018)
 texture = ExtResource("1_4r5ov")
 
+[node name="dResource4" type="TextureRect" parent="resource" unique_id=39684881]
+offset_left = 28.0
+offset_top = 446.0
+offset_right = 151.0
+offset_bottom = 588.0
+texture = ExtResource("1_4r5ov")
+script = ExtResource("2_qlfaa")
+
 [node name="dResource1" type="TextureRect" parent="." unique_id=2062571595]
 offset_left = 28.0
 offset_top = 446.0

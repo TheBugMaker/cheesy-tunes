@@ -3,15 +3,15 @@ extends RefCounted
 ## Static data for Cheezy Tunes: the ingredient tiles and the simplified cheese recipes.
 ## Pure data — no scene logic here. Referenced statically, e.g. CheeseDB.CHEESES.
 
-## Tile id -> display label + color. Completely stripped down to the active ingredients.
+## Tile id -> display label + color + texture.
 const TILES: Dictionary = {
-	"milk":     {"label": "Milk",     "color": Color("f7f3e8")},
-	"acid":     {"label": "Acid",     "color": Color("eaf06a")},
-	"salt":     {"label": "Salt",     "color": Color("e8e8ee")},
-	"bacteria": {"label": "Bacteria", "color": Color("c9d6a3")},
-	"rennet":   {"label": "Rennet",   "color": Color("d9b38c")},
-	"mold":     {"label": "Mold",     "color": Color("8fa9d6")},
-	"wine":     {"label": "Wine",     "color": Color("9e2a2b")},
+	"milk":     {"label": "Milk",     "color": Color("f7f3e8"), "texture": preload("res://Sprites/Milk_01.png")},
+	"acid":     {"label": "Acid",     "color": Color("eaf06a"), "texture": preload("res://Sprites/Acid_01.png")},
+	"salt":     {"label": "Salt",     "color": Color("e8e8ee"), "texture": preload("res://Sprites/Salt_01.png")},
+	"bacteria": {"label": "Bacteria", "color": Color("c9d6a3"), "texture": preload("res://Sprites/Bacteria_01.png")},
+	"rennet":   {"label": "Rennet",   "color": Color("d9b38c"), "texture": preload("res://Sprites/Rennet_01.png")},
+	"mold":     {"label": "Mold",     "color": Color("8fa9d6"), "texture": preload("res://Sprites/Mold_01.png")},
+	"wine":     {"label": "Wine",     "color": Color("9e2a2b"), "texture": preload("res://Sprites/Wine_01.png")},
 }
 
 ## Each cheese mapped exactly to your updated rules.
@@ -33,7 +33,7 @@ const CHEESES: Array[Dictionary] = [
 		"name": "Cream Cheese",
 		"hint": "Smooth, mild tasting fresh cheese enriched with bacteria.",
 		"recipe": ["milk", "salt", "bacteria"],
-		"active": true, # Set to false if you want it completely locked out of level 1 rotation
+		"active": true,
 	},
 	{
 		"name": "Brie",
@@ -80,13 +80,13 @@ const INGREDIENT_PRICES: Dictionary = {
 ## Scaled reward structures scaled to the structural complexity of each recipe.
 const CHEESE_PAYOUT_RANGE: Dictionary = {
 	"Paneer":         Vector2i(12, 18),
-	"Mozzarella":     Vector2i(18, 25),
-	"Cream Cheese":   Vector2i(20, 28),
-	"Brie":           Vector2i(26, 38),
-	"Comte":          Vector2i(30, 44),
+	"Mozzarella":      Vector2i(18, 25),
+	"Cream Cheese":    Vector2i(20, 28),
+	"Brie":            Vector2i(26, 38),
+	"Comte":           Vector2i(30, 44),
 	"Mozzarella (Alt)": Vector2i(35, 48),
-	"Roquefort":      Vector2i(42, 58),
-	"Taleggio":       Vector2i(48, 66),
+	"Roquefort":       Vector2i(42, 58),
+	"Taleggio":        Vector2i(48, 66),
 }
 
 ## Updated track layer maps matching the clean tool-pool configuration.
@@ -103,13 +103,13 @@ const MUSIC_COMPONENT: Dictionary = {
 ## Clean audio target hooks for your updated cheese library.
 const CHEESE_TUNE: Dictionary = {
 	"Paneer":         "res://audio/paneer.ogg",
-	"Mozzarella":     "res://audio/mozzarella.ogg",
-	"Cream Cheese":   "res://audio/cream_cheese.ogg",
-	"Brie":           "res://audio/brie.ogg",
-	"Comte":          "res://audio/comte.ogg",
+	"Mozzarella":      "res://audio/mozzarella.ogg",
+	"Cream Cheese":    "res://audio/cream_cheese.ogg",
+	"Brie":            "res://audio/brie.ogg",
+	"Comte":           "res://audio/comte.ogg",
 	"Mozzarella (Alt)": "res://audio/mozzarella_alt.ogg",
-	"Roquefort":      "res://audio/roquefort.ogg",
-	"Taleggio":       "res://audio/taleggio.ogg",
+	"Roquefort":       "res://audio/roquefort.ogg",
+	"Taleggio":        "res://audio/taleggio.ogg",
 }
 
 
