@@ -4,7 +4,6 @@ extends Control
 ## produce a wheel.
 ## Wheels directly fulfill matching orders from a timed queue.
 ## Wastes ingredients if there is no matching active order or recipe mismatch.
-
 # --- Custom Font Preload ---
 const GAME_FONT: Font = preload("res://Fonts/PPEditorialNew-Regular-BF644b214ff145f.otf")
 const DEFAULT_ITEM_TEXTURE: Texture2D = preload("res://Sprites/milkBucket.png")
@@ -50,7 +49,7 @@ const LEVELS: Array = [
 		],
 	},
 	{
-		"flavor": "A new batch of orders arrived.\nStrange order forms. No Company name in the form.\nThe foreman says not to ask questions.",
+		"flavor": "A new batch of orders arrived.\nStrange order forms.\nNo Company name in the form.\nThe foreman says not to ask questions.",
 		"ingredients": ["milk", "acid", "salt", "rennet", "bacteria"],
 		"orders": [
 			["Comte", 0.0,  50.0],
@@ -86,7 +85,7 @@ const LEVELS: Array = [
 		],
 	},
 	{
-		"flavor": "The last day.\nAn inspector is coming.\nMake it count. Make it perfect.",
+		"flavor": "The last day.\nAn inspector is coming.\nMake it count.\nMake it perfect.",
 		"ingredients": ["milk", "acid", "salt", "rennet", "bacteria", "mold", "wine", "fungus"],
 		"orders": [
 			["Comte", 0.0,  35.0],
@@ -112,6 +111,23 @@ const LEVELS: Array = [
 var money: int = START_MONEY
 var current_displayed_money: int = START_MONEY # ROLLING COUNTER: Tracks visual money ticker
 var money_tween: Tween                         # ROLLING COUNTER: Animates visual ticker changes
+
+# --- NEW GAME JAM ADDITIONS: STOCK & INFINITE MODE ---
+var level_stock: Array[String] = []
+var infinite_mode: bool = false
+var infinite_spawn_timer: float = 0.0
+const CHEESE_TEXTURES: Dictionary = {
+	"Paneer": "res://Sprites/Paneer_01.png",
+	"Mozzarella": "res://Sprites/Mozarella_01.png",
+	"Cream Cheese": "res://Sprites/cream_cheese_01.png",
+	"Brie": "res://Sprites/brie_02.png",
+	"Comte": "res://Sprites/Comte_01.png",
+	"Roquefort": "res://Sprites/Roquefort_01.png",
+	"Taleggio": "res://Sprites/Taleggio_01.png",
+	"Goop": "res://Sprites/Goop_01.png"
+}
+var stock_container: GridContainer
+# -----------------------------------------------------
 
 var score: int = 0
 var inventory: Dictionary = {}        # ingredient_id -> int
@@ -206,15 +222,20 @@ func _show_interstitial(level_idx: int) -> void:
 	if sequencer:
 		sequencer.stop()
 		synth.all_off()
-	interstitial_label.text = LEVELS[level_idx]["flavor"]
-	interstitial_begin_btn.text = "Begin Level %d" % (level_idx + 1)
+		
+	# INFINITE MODE: Change interstitial text if beyond standard levels
+	if level_idx >= LEVELS.size():
+		interstitial_label.text = "The factory never sleeps.\nWelcome to the Infinite Shift."
+		interstitial_begin_btn.text = "Begin Endless Mode"
+	else:
+		interstitial_label.text = LEVELS[level_idx]["flavor"]
+		interstitial_begin_btn.text = "Begin Level %d" % (level_idx + 1)
+		
 	interstitial.visible = true
 
 
 func _begin_level(level_idx: int) -> void:
 	interstitial.visible = false
-
-	var level: Dictionary = LEVELS[level_idx]
 
 	# Reset per-level state
 	pot.clear()
@@ -224,34 +245,46 @@ func _begin_level(level_idx: int) -> void:
 	orders.clear()
 	level_time = 0.0
 	level_complete = false
+	level_stock.clear()
 
-	# Build pending order queue from definition with Random configurations
 	pending_orders.clear()
-	for entry in level["orders"]:
-		var cheese_name: String = entry[0]
-		
-		if cheese_name == "Random1":
-			var options: Array = ["Mozzarella", "Paneer", "Cream Cheese"]
-			cheese_name = options[randi() % options.size()]
-		elif cheese_name == "Random2":
-			var options: Array = ["Brie", "Comte", "Roquefort"]
-			cheese_name = options[randi() % options.size()]
-		elif cheese_name == "Random3":
-			var options: Array = []
-			for cheese in CheeseDB.get_active_cheeses():
-				options.append(cheese["name"])
-			if options.is_empty():
-				options = ["Paneer", "Mozzarella", "Cheddar", "Brie", "Roquefort", "Comte", "Taleggio"]
-			cheese_name = options[randi() % options.size()]
 
-		pending_orders.append({
-			"cheese":    cheese_name,
-			"spawn":     float(entry[1]),
-			"duration":  float(entry[2]),
-		})
+	# INFINITE MODE OR STANDARD LEVEL ROUTING
+	if level_idx >= LEVELS.size():
+		infinite_mode = true
+		infinite_spawn_timer = 2.0
+		# Enable all possible ingredients for Endless
+		_apply_level_ingredients(["milk", "acid", "salt", "rennet", "bacteria", "mold", "wine", "fungus"])
+	else:
+		infinite_mode = false
+		var level: Dictionary = LEVELS[level_idx]
 
-	# Show/hide ingredient cards based on what this level allows
-	_apply_level_ingredients(level["ingredients"])
+		# Build pending order queue from definition with Random configurations
+		for entry in level["orders"]:
+			var cheese_name: String = entry[0]
+			
+			if cheese_name == "Random1":
+				var options: Array = ["Mozzarella", "Paneer", "Cream Cheese"]
+				cheese_name = options[randi() % options.size()]
+			elif cheese_name == "Random2":
+				var options: Array = ["Brie", "Comte", "Roquefort"]
+				cheese_name = options[randi() % options.size()]
+			elif cheese_name == "Random3":
+				var options: Array = []
+				for cheese in CheeseDB.get_active_cheeses():
+					options.append(cheese["name"])
+				if options.is_empty():
+					options = ["Paneer", "Mozzarella", "Cheddar", "Brie", "Roquefort", "Comte", "Taleggio"]
+				cheese_name = options[randi() % options.size()]
+
+			pending_orders.append({
+				"cheese":    cheese_name,
+				"spawn":     float(entry[1]),
+				"duration":  float(entry[2]),
+			})
+
+		# Show/hide ingredient cards based on what this level allows
+		_apply_level_ingredients(level["ingredients"])
 
 	# Clear inventory counts (slots already filtered by visibility)
 	for id in inventory.keys():
@@ -263,7 +296,8 @@ func _begin_level(level_idx: int) -> void:
 
 	# Tune the musical hints to this level's cheeses and start the looping riff.
 	_populate_target_select()
-	sequencer.start()
+	if sequencer:
+		sequencer.start()
 
 	running = true
 	_refresh_all()
@@ -279,17 +313,28 @@ func _apply_level_ingredients(allowed: Array) -> void:
 
 func _tick_level(delta: float) -> void:
 	level_time += delta
-
-	# Spawn any orders whose time has come
 	var spawned: bool = false
-	var i: int = pending_orders.size() - 1
-	while i >= 0:
-		var pending: Dictionary = pending_orders[i]
-		if level_time >= pending["spawn"]:
-			_spawn_order(pending["cheese"], pending["duration"])
-			pending_orders.remove_at(i)
+
+	# INFINITE MODE SPAWNER OR PENDING ORDERS SPAWNER
+	if infinite_mode:
+		infinite_spawn_timer -= delta
+		if infinite_spawn_timer <= 0.0 and orders.size() < 4:
+			var options: Array = ["Paneer", "Mozzarella", "Cream Cheese", "Brie", "Comte", "Roquefort", "Taleggio"]
+			var random_cheese = options[randi() % options.size()]
+			_spawn_order(random_cheese, randf_range(35.0, 50.0))
+			infinite_spawn_timer = randf_range(12.0, 25.0)
 			spawned = true
-		i -= 1
+	else:
+		# Spawn any orders whose time has come
+		var i: int = pending_orders.size() - 1
+		while i >= 0:
+			var pending: Dictionary = pending_orders[i]
+			if level_time >= pending["spawn"]:
+				if orders.size() < 4:
+					_spawn_order(pending["cheese"], pending["duration"])
+					pending_orders.remove_at(i)
+					spawned = true
+			i -= 1
 
 	# Tick active orders
 	var structure_changed: bool = false
@@ -313,7 +358,7 @@ func _tick_level(delta: float) -> void:
 		_refresh_orders()
 
 	# Check if level is finished: no pending, no active orders, not cooking
-	if pending_orders.is_empty() and orders.is_empty() and not cooking and not level_complete:
+	if not infinite_mode and pending_orders.is_empty() and orders.is_empty() and not cooking and not level_complete:
 		level_complete = true
 		_on_level_complete()
 
@@ -333,13 +378,8 @@ func _spawn_order(cheese_name: String, duration: float) -> void:
 
 func _on_level_complete() -> void:
 	running = false
-	var next: int = current_level + 1
-	if next >= LEVELS.size():
-		# All levels done — show a victory screen
-		_show_victory()
-	else:
-		current_level = next
-		_show_interstitial(current_level)
+	current_level += 1
+	_show_interstitial(current_level)
 
 
 # ---------------------------------------------------------------------------
@@ -540,6 +580,29 @@ func _build_pot_area() -> Control:
 	clear_btn.pressed.connect(_on_clear_pot)
 	btn_row.add_child(clear_btn)
 
+	# --- NEW PROGRESS BAR LOCATION ---
+	var progress_center = CenterContainer.new()
+	pot_progress = ProgressBar.new()
+	pot_progress.show_percentage = false
+	pot_progress.min_value = 0.0
+	pot_progress.max_value = 1.0
+	pot_progress.value = 0.0
+	pot_progress.custom_minimum_size = Vector2(280, 16)
+	pot_progress.visible = false
+	progress_center.add_child(pot_progress)
+	wrap.add_child(progress_center)
+	
+	# --- NEW STOCK AREA ---
+	wrap.add_child(_make_bold_label("Stock", 18))
+	stock_container = GridContainer.new()
+	stock_container.columns = 6
+	stock_container.add_theme_constant_override("h_separation", 8)
+	stock_container.add_theme_constant_override("v_separation", 8)
+	
+	var stock_panel = _panel(stock_container, Color("241d12"))
+	stock_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL 
+	wrap.add_child(stock_panel)
+
 	return wrap
 
 
@@ -563,15 +626,7 @@ func _build_pot_center() -> Control:
 	plate_canvas.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	container.add_child(plate_canvas)
 
-	pot_progress = ProgressBar.new()
-	pot_progress.show_percentage = false
-	pot_progress.min_value = 0.0
-	pot_progress.max_value = 1.0
-	pot_progress.value = 0.0
-	pot_progress.custom_minimum_size = Vector2(140, 12)
-	pot_progress.visible = false
-	pot_progress.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	container.add_child(pot_progress)
+	# Removed nested Progress Bar to put it under buttons!
 
 	return panel
 
@@ -863,14 +918,20 @@ func _finish_cook() -> void:
 			var completed_order: Dictionary = orders[matching_order_idx]
 			money += int(completed_order["payout"])
 			score += 1
+			level_stock.append(cook_target)
 			_on_cook_success(cook_target)
 			orders.remove_at(matching_order_idx)
 			_refresh_money()
 			_refresh_orders()
+			_refresh_stock()
 		else:
+			level_stock.append("Goop")
 			_on_cook_fail()
+			_refresh_stock()
 	else:
+		level_stock.append("Goop")
 		_on_cook_fail()
+		_refresh_stock()
 
 	pot.clear()
 	if sequencer:
@@ -944,7 +1005,7 @@ func _is_game_over() -> bool:
 		return false
 	if level_complete:
 		return false
-	if not pending_orders.is_empty():
+	if not pending_orders.is_empty() or infinite_mode:
 		return false
 	if orders.is_empty():
 		return false
@@ -1029,6 +1090,7 @@ func restart() -> void:
 	cook_target = ""
 	level_time = 0.0
 	level_complete = false
+	level_stock.clear()
 	pending_orders.clear()
 	for id: String in inventory.keys():
 		inventory[id] = 0
@@ -1053,6 +1115,7 @@ func _refresh_all() -> void:
 	_refresh_inventory()
 	_refresh_pot()
 	_refresh_orders()
+	_refresh_stock()
 
 
 # ROLLING COUNTER: Kicks off a fast rolling tween towards the target money balance
@@ -1113,6 +1176,28 @@ func _refresh_pot() -> void:
 		img.position = Vector2(randf_range(0, 50), randf_range(0, 50))
 		plate_canvas.add_child(img)
 
+# --- REFRESH STOCK IMAGES ---
+func _refresh_stock() -> void:
+	if not stock_container:
+		return
+	
+	for child in stock_container.get_children():
+		child.queue_free()
+		
+	for cheese in level_stock:
+		var tex_path = CHEESE_TEXTURES.get(cheese, "res://Sprites/Goop_01.png")
+		var img = TextureRect.new()
+		
+		if ResourceLoader.exists(tex_path):
+			img.texture = load(tex_path)
+		else:
+			img.texture = DEFAULT_ITEM_TEXTURE
+			
+		img.custom_minimum_size = Vector2(40, 40)
+		img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		stock_container.add_child(img)
+# ------------------------------
 
 func _refresh_orders() -> void:
 	if custom_tooltip:
