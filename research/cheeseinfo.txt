@@ -1,0 +1,29 @@
+IDs + Types of Cheese + Recipes:
+
+1. Paneer (Milk+Acid)
+2. Mozzarella (Milk+Acid+Salt) // Cut out Rennet to make experimentation simpler
+3. Cream Cheese (Milk+Salt+Bacteria) // Bacteria unlocks in 2nd level
+4. Brie (Milk+Salt+Acid+Bacteria)
+5. Comte (Milk+Bacteria+Rennet+Salt)
+6. Mozzarella alt recipe (Milk+Acid+Salt+Rennet)
+7. Roquefort (Milk+Salt+Rennet+Bacteria+Mold)
+8. Taleggio (Milk+Bacteria+Rennet+Salt+Wine)
+
+Art resources needed:
+
+1. Milk
+2. Acid
+3. Rennet
+4. Salt
+5. Bacteria
+6. Mold
+7. Wine
+
+1. Paneer
+2. Mozzarella
+3. Cream Cheese
+4. Brie
+5. Comte
+6. Roquefort
+7. Taleggio
+8. Goop (for non-existent recipes)
