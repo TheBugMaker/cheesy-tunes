@@ -1,0 +1,10 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <rect width="128" height="128" rx="16" fill="#3a2f1a"/>
+  <!-- cheese wedge -->
+  <path d="M20 86 L108 50 L108 86 Z" fill="#f4c430" stroke="#caa017" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M20 86 L108 50 L108 60 L20 96 Z" fill="#e0ad1f"/>
+  <!-- holes -->
+  <circle cx="58" cy="74" r="6" fill="#caa017"/>
+  <circle cx="80" cy="66" r="4" fill="#caa017"/>
+  <circle cx="93" cy="74" r="3" fill="#caa017"/>
+</svg>
