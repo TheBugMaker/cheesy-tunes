@@ -1,23 +1,52 @@
 processes:
+  - Heating
+  - Acid coagulation
+  - Bacterial fermentation
+  - Separation
+  - Draining
+  - Pressing
+  - Cutting
 ingredients:
-  - milk
-  - acid
-  - salt
-  - bacteria culture
-  - white mold
-  - rennet
+  raw materials:
+    - milk
+    - acid (vinegar)
+    - salt
+    - bacteria culture
+    - rennet
+    - white mold
+    - blue mold
+    - wine
+  processed materials:
+    - heated milk
+    - curd-and-whey mixture
+    - curds
+    - whey
+    - drained curds
+    - soft curd
+    - cut soft curds
+    - drained soft curds
 cheese:
-  paneer:
+  Paneer:
     ingredients:
       - milk
       - acid
     process:
-  cream cheese:
+      1. Heating (milk -> heated milk)
+      2. Acid coagulation (acid + heated milk -> curd-and-whey mixture)
+      3. Separation (curd-and-whey mixture -> curds + whey)
+      4. Draining (curds -> drained curds)
+      5. Pressing (drained curds -> Paneer)
+  Cream cheese:
     ingredients:
       - milk
       - salt
       - bacteria culture
     process:
+      1. Heating (milk -> heated milk)
+      2. Bacterial fermentation (bacteria culture + heated milk -> soft curd)
+      3. Cutting (soft curd -> cut curds)
+      4. Draining (cut soft curds -> drained soft curds)
+      5. Pressing (drained soft curds -> Cream cheese)
   Comte:
     ingredients:
       - milk
@@ -25,6 +54,7 @@ cheese:
       - rennet
       - salt
     process:
+      
   Mozzarella:
     ingredients:
       - milk
@@ -32,7 +62,7 @@ cheese:
       - rennet
       - salt
     process:
-  brie:
+  Brie:
     ingredients:
       - milk
       - salt
@@ -40,7 +70,7 @@ cheese:
       - bacteria culture
       - white mold
     process:
-  roquefort:
+  Roquefort:
     ingredients:
       - milk
       - salt
@@ -48,6 +78,11 @@ cheese:
       - bacteria culture
       - blue mold
     process:
-  taleggio:
+  Taleggio:
     ingredients:
+      - milk
+      - bacteria culture
+      - rennet
+      - salt
+      - wine
     process:
