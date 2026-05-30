@@ -1,0 +1,42 @@
+processes:
+ingridients:
+  - milk
+  - acid
+  - salt
+  - bacteria culture
+  - white mold
+  - rennet
+cheese:
+  paneer:
+    ingridients:
+      - milk
+      - acid
+    process:
+  cream cheese:
+    ingridients:
+      - milk
+      - salt
+      - bacteria culture
+    process:
+  Comte:
+    ingridients:
+      - milk
+      - bacteria culture
+      - rennet
+      - salt
+    process:
+  Mozzarella:
+    ingridients:
+      - milk
+      - acid
+      - rennet
+      - salt
+    process:
+  brie:
+    ingridients:
+      - milk
+      - salt
+      - rennet
+      - bacteria culture
+      - white mold
+    process:
