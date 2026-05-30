@@ -25,7 +25,7 @@ const COOK_TIME: float = 4.0
 const LEVELS: Array = [
 	{
 		"flavor": "You have some light orders coming in.\nThe smell of warm milk fills the air.",
-		"ingredients": ["milk", "acid", "salt", "bacteria culture"],
+		"ingredients": ["milk", "acid", "salt", "bacteria"],
 		"orders": [
 			["Paneer", 0.0,  60.0],
 			["Paneer", 15.0, 60.0],
