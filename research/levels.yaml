@@ -1,3 +1,9 @@
+# Level suggestions:
+# - Level 1: Only Paneer and Cream Cheese orders, 2 orders visible at a time, 60 second expiration, 150 seconds between rushed orders, 20 second durability of revealed ingredients
+# - Level 2: Add Mozzarella (Alt) and Mozzarella orders,  2 orders visible at a time, 50 second expiration, 125 seconds between rushed orders, 18 second durability of revealed ingredients
+# - Level 3: Add Comte orders, 3 orders visible at a time, 45 second expiration, 110 seconds between rushed orders, 16 second durability of revealed ingredients
+# - Level 4: Add Brie and Roquefort orders, 4 orders visible at a time, 40 second expiration, 105 seconds between rushed orders, 14 second durability of revealed ingredients
+# - Level 5: Add Taleggio orders, 4 orders visible at a time, 35 second expiration, 100 seconds between rushed orders, 12 second durability of revealed ingredients
 levels:
   Level 1:
     orders visible: 2
