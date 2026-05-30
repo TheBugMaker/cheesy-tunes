@@ -1,0 +1,53 @@
+[gd_scene format=3 uid="uid://5x66ngbini5h"]
+
+[ext_resource type="Texture2D" uid="uid://0wwvn1fh1xoy" path="res://Sprites/milkBucket.png" id="1_4r5ov"]
+[ext_resource type="Texture2D" uid="uid://dqdkk2gbgvkr2" path="res://Sprites/plate.png" id="2_porgt"]
+[ext_resource type="Script" uid="uid://dku36c4w4r8cj" path="res://scripts/dResourceScript.gd" id="2_qlfaa"]
+[ext_resource type="Script" uid="uid://erercyorhwso" path="res://scripts/plateScript.gd" id="4_dxi5p"]
+
+[node name="CheeseRoom" type="Node2D" unique_id=584111870]
+
+[node name="Node2D" type="Node2D" parent="." unique_id=386745600]
+position = Vector2(373, 224)
+
+[node name="MilkBucket" type="Sprite2D" parent="." unique_id=1934396547]
+position = Vector2(1082, 295)
+scale = Vector2(0.1691843, 0.19473684)
+texture = ExtResource("1_4r5ov")
+
+[node name="resource" type="Sprite2D" parent="." unique_id=1373036101]
+position = Vector2(549, 73.99997)
+scale = Vector2(0.5646387, 0.14967018)
+texture = ExtResource("1_4r5ov")
+
+[node name="dResource1" type="TextureRect" parent="." unique_id=2062571595]
+offset_left = 28.0
+offset_top = 446.0
+offset_right = 151.0
+offset_bottom = 588.0
+texture = ExtResource("1_4r5ov")
+script = ExtResource("2_qlfaa")
+
+[node name="plate" type="TextureRect" parent="." unique_id=2009438504]
+offset_left = 380.0
+offset_top = 214.0
+offset_right = 720.0
+offset_bottom = 379.0
+texture = ExtResource("2_porgt")
+script = ExtResource("4_dxi5p")
+
+[node name="dResource2" type="TextureRect" parent="." unique_id=2048227597]
+offset_left = 25.0
+offset_top = 293.0
+offset_right = 148.0
+offset_bottom = 435.0
+texture = ExtResource("1_4r5ov")
+script = ExtResource("2_qlfaa")
+
+[node name="dResource3" type="TextureRect" parent="." unique_id=2134917653]
+offset_left = 25.0
+offset_top = 139.0
+offset_right = 148.0
+offset_bottom = 281.0
+texture = ExtResource("1_4r5ov")
+script = ExtResource("2_qlfaa")
