@@ -136,12 +136,12 @@ const ART_KHUSHAAL := [
 ]
 
 const CREDITS: Array = [
-	{"name": "Ghaseen", "art": ART_GHASEEN, "tagline": "Chef de Fromage"},
-	{"name": "Rak", "art": ART_RAK, "tagline": "Mouse Tamer"},
-	{"name": "Magnus", "art": ART_MAGNUS, "tagline": "Too Cool For Curd"},
-	{"name": "Tino", "art": ART_TINO, "tagline": "Hole Wrangler"},
-	{"name": "Kathi", "art": ART_KATHI, "tagline": "Vibe Officer"},
-	{"name": "Khushaal", "art": ART_KHUSHAAL, "tagline": "Stretch Engineer"},
+	{"name": "Ghaseen", "art": ART_GHASEEN, "tagline": "Management, Code, Design, Composition, Music, Git"},
+	{"name": "Rak", "art": ART_RAK, "tagline": "Management, Production, Design, Systems, Code, UI"},
+	{"name": "Magnus", "art": ART_MAGNUS, "tagline": "Design, Art"},
+	{"name": "Tino", "art": ART_TINO, "tagline": "Narrative, Research, Code"},
+	{"name": "Kathi", "art": ART_KATHI, "tagline": "Code, Design"},
+	{"name": "Khushaal", "art": ART_KHUSHAAL, "tagline": "Code, Design, UI"},
 ]
 
 
