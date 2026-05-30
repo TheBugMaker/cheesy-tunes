@@ -10,6 +10,12 @@ const ORDER_TIME_MIN := 20.0
 const ORDER_TIME_MAX := 35.0
 const MAX_ORDERS := 4
 
+const PRIORITY_SPAWN_INTERVAL_MIN := 45.0
+const PRIORITY_SPAWN_INTERVAL_MAX := 90.0
+const PRIORITY_TIME := 15.0
+const PRIORITY_PENALTY := 20
+const PRIORITY_PAYOUT_BONUS := 15
+
 # --- runtime state ---
 var money: int = START_MONEY
 var score: int = 0
@@ -19,8 +25,9 @@ var cooking: bool = false
 var cook_progress: float = 0.0
 var cook_target: String = ""          # cheese name, "" if mismatch
 var stock: Dictionary = {}            # cheese_name -> int
-var orders: Array = []                # {cheese, time_left, time_max, payout}
+var orders: Array = []                # {cheese, time_left, time_max, payout, priority}
 var running: bool = false
+var _priority_timer: float = 0.0
 
 # --- node references ---
 var money_label: Label
@@ -35,6 +42,7 @@ var inventory_row: HBoxContainer
 var ingredient_ring: GridContainer
 var overlay: Panel
 var overlay_label: Label
+var penalty_label: Label
 
 var inv_labels: Dictionary = {}       # ingredient_id -> Label (count in inventory row)
 var buy_buttons: Dictionary = {}      # ingredient_id -> Button (buy [+])
@@ -44,6 +52,7 @@ var stock_labels: Dictionary = {}     # cheese_name -> Label
 
 func _ready() -> void:
 	randomize()
+	_priority_timer = randf_range(PRIORITY_SPAWN_INTERVAL_MIN, PRIORITY_SPAWN_INTERVAL_MAX)
 	_build_ui()
 	_init_inventory()
 	_refill_orders()
@@ -56,6 +65,7 @@ func _process(delta: float) -> void:
 		return
 	_tick_cook(delta)
 	_tick_orders(delta)
+	_tick_priority_timer(delta)
 	_auto_fulfill()
 	if _is_game_over():
 		_show_game_over()
@@ -96,6 +106,12 @@ func _build_ui() -> void:
 	top.add_child(spacer)
 	score_label = _make_label("Score: 0", 24)
 	top.add_child(score_label)
+
+	penalty_label = _make_label("", 17)
+	penalty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	penalty_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
+	penalty_label.visible = false
+	col.add_child(penalty_label)
 
 	# --- middle: orders+stock (left) | pot (right) ---
 	var mid := HBoxContainer.new()
@@ -430,6 +446,10 @@ func _tick_orders(delta: float) -> void:
 	while i >= 0:
 		orders[i]["time_left"] -= delta
 		if orders[i]["time_left"] <= 0.0:
+			if orders[i].get("priority", false):
+				money = max(0, money - PRIORITY_PENALTY)
+				_show_penalty_flash()
+				_refresh_money()
 			orders.remove_at(i)
 		i -= 1
 	_refill_orders()
@@ -461,7 +481,11 @@ func _refill_orders() -> void:
 	var active := CheeseDB.get_active_cheeses()
 	if active.is_empty():
 		return
-	while orders.size() < MAX_ORDERS:
+	var normal_count := 0
+	for o in orders:
+		if not o.get("priority", false):
+			normal_count += 1
+	while normal_count < MAX_ORDERS:
 		var cheese: Dictionary = active[randi() % active.size()]
 		var cheese_name: String = cheese["name"]
 		var rng: Vector2i = CheeseDB.CHEESE_PAYOUT_RANGE.get(cheese_name, Vector2i(20, 30))
@@ -472,7 +496,48 @@ func _refill_orders() -> void:
 			"time_left": t,
 			"time_max": t,
 			"payout": payout,
+			"priority": false,
 		})
+		normal_count += 1
+
+
+func _tick_priority_timer(delta: float) -> void:
+	_priority_timer -= delta
+	if _priority_timer <= 0.0:
+		_priority_timer = randf_range(PRIORITY_SPAWN_INTERVAL_MIN, PRIORITY_SPAWN_INTERVAL_MAX)
+		_spawn_priority_order()
+
+
+func _spawn_priority_order() -> void:
+	# Only one priority order at a time
+	for o in orders:
+		if o.get("priority", false):
+			return
+	var active := CheeseDB.get_active_cheeses()
+	if active.is_empty():
+		return
+	var cheese: Dictionary = active[randi() % active.size()]
+	var cheese_name: String = cheese["name"]
+	var rng: Vector2i = CheeseDB.CHEESE_PAYOUT_RANGE.get(cheese_name, Vector2i(20, 30))
+	var payout: int = rng.x + (randi() % max(1, rng.y - rng.x + 1)) + PRIORITY_PAYOUT_BONUS
+	# Insert at front so auto-fulfill prefers it over normal orders of the same cheese
+	orders.insert(0, {
+		"cheese": cheese_name,
+		"time_left": PRIORITY_TIME,
+		"time_max": PRIORITY_TIME,
+		"payout": payout,
+		"priority": true,
+	})
+	_refresh_orders()
+
+
+func _show_penalty_flash() -> void:
+	penalty_label.text = "!! Priority order missed — $%d penalty" % PRIORITY_PENALTY
+	penalty_label.modulate = Color(1, 1, 1, 1)
+	penalty_label.visible = true
+	var tween := create_tween()
+	tween.tween_property(penalty_label, "modulate", Color(1, 1, 1, 0), 2.5)
+	tween.tween_callback(func(): penalty_label.visible = false)
 
 
 ## Returns the cheese name whose recipe set-equals `current_pot`, or "" if none.
@@ -550,6 +615,7 @@ func restart() -> void:
 	for cheese_name in stock.keys():
 		stock[cheese_name] = 0
 	orders.clear()
+	_priority_timer = randf_range(PRIORITY_SPAWN_INTERVAL_MIN, PRIORITY_SPAWN_INTERVAL_MAX)
 	_refill_orders()
 	pot_progress.visible = false
 	cook_btn.disabled = false
@@ -626,15 +692,30 @@ func _refresh_orders() -> void:
 		orders_box.add_child(empty)
 		return
 	for order in orders:
+		var is_priority: bool = order.get("priority", false)
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
-		var name_lbl := _make_label(order["cheese"], 16)
+		if is_priority:
+			var bg := PanelContainer.new()
+			var sb := StyleBoxFlat.new()
+			sb.bg_color = Color(0.38, 0.1, 0.07)
+			sb.set_corner_radius_all(4)
+			sb.set_content_margin_all(4)
+			bg.add_theme_stylebox_override("panel", sb)
+			bg.add_child(row)
+			orders_box.add_child(bg)
+		else:
+			orders_box.add_child(row)
+		var cheese_text := ("!! " if is_priority else "") + (order["cheese"] as String)
+		var name_lbl := _make_label(cheese_text, 16)
 		name_lbl.custom_minimum_size = Vector2(110, 0)
+		if is_priority:
+			name_lbl.add_theme_color_override("font_color", Color(1.0, 0.55, 0.3))
 		row.add_child(name_lbl)
 		var time_lbl := _make_label("%ds" % int(ceil(order["time_left"])), 16)
 		time_lbl.custom_minimum_size = Vector2(48, 0)
-		if order["time_left"] < order["time_max"] * 0.33:
-			time_lbl.modulate = Color(1, 0.55, 0.55)
+		if is_priority or order["time_left"] < order["time_max"] * 0.33:
+			time_lbl.modulate = Color(1, 0.45, 0.45)
 		row.add_child(time_lbl)
 		var pay_lbl := _make_label("+$%d" % int(order["payout"]), 16)
 		pay_lbl.modulate = Color(0.7, 1.0, 0.7)
