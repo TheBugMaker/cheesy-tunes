@@ -114,6 +114,22 @@ cheese:
       - Cutting (ripe curds -> cut ripe curds)
       - Heating (cut ripe curds -> mozzarella curds)
       - Salting (mozzarella curds + salt -> mozzarella)
+  Mozzarella (Alt):
+    ingredients:
+      - milk
+      - acid
+      - salt
+    process:
+      - Heating (milk -> heated milk)
+      - Coagulation (acid + heated milk -> curd-and-whey mixture)
+      - Separation (curd-and-whey mixture -> curds + whey)
+      - Coagulation (rennet + curd -> rennet curd)
+      - Cutting (rennet curd -> cut rennet curds)
+      - Draining (cut rennet curds -> drained rennet curds)
+      - Ripening (drained rennet curds -> ripe curds)
+      - Cutting (ripe curds -> cut ripe curds)
+      - Heating (cut ripe curds -> mozzarella curds)
+      - Salting (mozzarella curds + salt -> mozzarella)
   Brie:
     ingredients:
       - milk

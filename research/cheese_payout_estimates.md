@@ -28,6 +28,7 @@ Cheese | Ingredients | Raw cost | Process steps | Process bonus | Ingredient bon
 --- | --- | ---: | ---: | ---: | ---: | ---: | ---:
 Paneer | milk, acid | $6 | 5 | $2.50 | $0 | $9 | $8-$10
 Cream cheese | milk, salt, bacteria culture | $7 | 5 | $2.50 | $0 | $10 | $8-$12
+Mozzarella (Alt) | milk, acid, salt | $8 | 10 | $5 | $0 | $14 | $12-$16
 Comte | milk, bacteria culture, rennet, salt | $11 | 8 | $4 | $0 | $16 | $14-$18
 Mozzarella | milk, acid, rennet, salt | $12 | 10 | $5 | $0 | $18 | $15-$21
 Brie | milk, salt, rennet, bacteria culture, white mold | $17 | 8 | $4 | $3 | $25 | $21-$29
@@ -54,13 +55,14 @@ Replace `CHEESE_PAYOUT_RANGE` in `scripts/cheese_db.gd` with:
 
 ```gdscript
 const CHEESE_PAYOUT_RANGE: Dictionary = {
-	"Paneer":       Vector2i(8, 10),
-	"Cream Cheese": Vector2i(8, 12),
-	"Comte":        Vector2i(14, 18),
-	"Mozzarella":   Vector2i(15, 21),
-	"Brie":         Vector2i(21, 29),
-	"Roquefort":    Vector2i(23, 31),
-	"Taleggio":     Vector2i(25, 33),
+	"Paneer":           Vector2i(8, 10),
+	"Cream Cheese":     Vector2i(8, 12),
+	"Mozzarella (Alt)": Vector2i(12, 16),
+	"Comte":            Vector2i(14, 18),
+	"Mozzarella":       Vector2i(15, 21),
+	"Brie":             Vector2i(21, 29),
+	"Roquefort":        Vector2i(23, 31),
+	"Taleggio":         Vector2i(25, 33),
 }
 ```
 
