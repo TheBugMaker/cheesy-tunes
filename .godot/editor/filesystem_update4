@@ -1,7 +1,1 @@
-res://Objects/milk.tres
-res://scenes/cheeseRoom.tscn
-res://scripts/dResourceScript.gd
-res://scripts/plateScript.gd
-res://scripts/cheese_db.gd
 res://scripts/game.gd
-res://scripts/cheeseDB.gd

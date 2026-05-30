@@ -126,12 +126,34 @@ var inv_labels: Dictionary = {}       # ingredient_id -> Label (count in invento
 var buy_buttons: Dictionary = {}      # ingredient_id -> Button
 var inv_cards: Dictionary = {}        # ingredient_id -> root card Control (for show/hide)
 
+# --- musical ingredient hints (mirrors sound_test.gd) ---
+var synth: Synth
+var sequencer: Sequencer
+var music_target: String = ""         # current target cheese name
+var target_cheeses: Array[String] = []  # selectable targets for the current level (index-aligned with target_select)
+var target_select: OptionButton
+var transport_label: Label            # "♪ <cheese> — <song title>"
+var dots_label: Label                 # looping riff playhead indicator
+
 
 func _ready() -> void:
 	randomize()
 	_build_ui()
 	_init_inventory()
+	_init_audio()
 	_show_interstitial(current_level)   # Start at level 0 interstitial
+
+
+# Build the synth + sequencer that drive the musical ingredient hints
+# (same setup as sound_test.gd). The sequencer runs its own _process; it stays
+# idle until a level loads a song and the player selects ingredients.
+func _init_audio() -> void:
+	synth = Synth.new()
+	add_child(synth)
+	sequencer = Sequencer.new()
+	sequencer.synth = synth
+	sequencer.step_advanced.connect(_on_step_advanced)
+	add_child(sequencer)
 
 
 func _process(delta: float) -> void:
@@ -154,6 +176,9 @@ func _process(delta: float) -> void:
 # ---------------------------------------------------------------------------
 func _show_interstitial(level_idx: int) -> void:
 	running = false
+	if sequencer:
+		sequencer.stop()
+		synth.all_off()
 	interstitial_label.text = LEVELS[level_idx]["flavor"]
 	interstitial_begin_btn.text = "Begin Level %d" % (level_idx + 1)
 	interstitial.visible = true
@@ -208,6 +233,11 @@ func _begin_level(level_idx: int) -> void:
 	pot_progress.visible = false
 	cook_btn.disabled = false
 	clear_btn.disabled = false
+
+	# Tune the musical hints to this level's cheeses and start the looping riff.
+	_populate_target_select()
+	sequencer.start()
+
 	running = true
 	_refresh_all()
 
@@ -435,6 +465,28 @@ func _build_pot_area() -> Control:
 	var wrap: VBoxContainer = VBoxContainer.new()
 	wrap.add_theme_constant_override("separation", 10)
 	wrap.add_child(_make_bold_label("Cooking Area", 20))
+
+	# --- musical hint: target selector + looping riff transport (mirrors sound_test) ---
+	var tune_row: HBoxContainer = HBoxContainer.new()
+	tune_row.add_theme_constant_override("separation", 10)
+	tune_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	tune_row.add_child(_make_label("Tune to:", 16))
+	target_select = OptionButton.new()
+	target_select.add_theme_font_override("font", GAME_FONT)
+	target_select.add_theme_font_size_override("font_size", 16)
+	target_select.item_selected.connect(_select_music_target)
+	tune_row.add_child(target_select)
+	wrap.add_child(tune_row)
+
+	transport_label = _make_label("♪ riff", 15)
+	transport_label.modulate = Color("9fd3a0")
+	transport_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	wrap.add_child(transport_label)
+
+	dots_label = _make_label("", 18)
+	dots_label.modulate = Color("9fd3a0")
+	dots_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	wrap.add_child(dots_label)
 
 	var pot_center_wrap: CenterContainer = CenterContainer.new()
 	pot_center_wrap.add_child(_build_pot_center())
@@ -806,6 +858,8 @@ func _finish_cook() -> void:
 		_on_cook_fail()
 
 	pot.clear()
+	if sequencer:
+		sequencer.set_selected(pot)   # riff resets to silence after a cook
 	cooking = false
 	cook_progress = 0.0
 	pot_progress.visible = false
@@ -905,6 +959,9 @@ func _can_afford_recipe(cheese_name: String) -> bool:
 
 func _show_game_over() -> void:
 	running = false
+	if sequencer:
+		sequencer.stop()
+		synth.all_off()
 	overlay_label.text = "You fulfilled %d order%s.\nFinal money: %s" % [
 		score, ("" if score == 1 else "s"), _format_money(money),
 	]
@@ -913,6 +970,9 @@ func _show_game_over() -> void:
 
 func _show_victory() -> void:
 	running = false
+	if sequencer:
+		sequencer.stop()
+		synth.all_off()
 	for child: Node in overlay.get_children():
 		child.queue_free()
 	var center: CenterContainer = CenterContainer.new()
@@ -1125,25 +1185,88 @@ func _get_recipe_string(cheese_name: String) -> String:
 
 
 # ---------------------------------------------------------------------------
-# Audio integration hooks
+# Musical ingredient hints
+# Mirrors sound_test.gd: the player picks a target cheese, its riff loops, and
+# the pot drives the selection — correct ingredients fill in the tune (right
+# note), wrong ones tack on an off-key clash (wrong note).
 # ---------------------------------------------------------------------------
-func _on_pot_add(id: String) -> void:
-	var role: String = CheeseDB.MUSIC_COMPONENT.get(id, "?")
-	print("[audio] layer +%s (%s)" % [id, role])
+
+# Recipe (Array of tile ids) for a cheese name, or [] if it isn't in CheeseDB.
+func _recipe_for(cheese_name: String) -> Array:
+	for cheese: Dictionary in CheeseDB.CHEESES:
+		if cheese["name"] == cheese_name:
+			return cheese["recipe"]
+	return []
+
+
+# Rebuild the "Tune to:" options from the distinct cheeses this level orders,
+# keeping only those CheeseDB knows a recipe for, then tune to the first one.
+func _populate_target_select() -> void:
+	target_cheeses.clear()
+	var seen: Dictionary = {}
+	for pending: Dictionary in pending_orders:
+		var cname: String = pending["cheese"]
+		if seen.has(cname):
+			continue
+		if _recipe_for(cname).is_empty():
+			continue   # unknown cheese (no recipe) — can't build a note map
+		seen[cname] = true
+		target_cheeses.append(cname)
+
+	target_select.clear()
+	for cname: String in target_cheeses:
+		target_select.add_item(cname)
+
+	if target_cheeses.is_empty():
+		music_target = ""
+		transport_label.text = "♪ —"
+		dots_label.text = ""
+		return
+
+	target_select.select(0)
+	_select_music_target(0)   # select() doesn't emit item_selected
+
+
+# Port of sound_test.gd:_select_target — load the target cheese's riff.
+func _select_music_target(index: int) -> void:
+	if index < 0 or index >= target_cheeses.size():
+		return
+	var cheese_name: String = target_cheeses[index]
+	var recipe: Array = _recipe_for(cheese_name)
+	music_target = cheese_name
+	transport_label.text = "♪ %s — \"%s\"" % [cheese_name, Songs.title_for(cheese_name)]
+	sequencer.load_song(recipe, Songs.phrases_for(cheese_name, recipe))
+	sequencer.set_selected(pot)
+
+
+# Looping-riff playhead: a compact dot row with the current step glowing.
+func _on_step_advanced(index: int, total: int, _sounding: bool) -> void:
+	var s: String = ""
+	for i: int in total:
+		s += "●" if i == index else "·"
+	dots_label.text = s
+
+
+# ---------------------------------------------------------------------------
+# Audio integration hooks — drive the sequencer selection from the pot.
+# ---------------------------------------------------------------------------
+func _on_pot_add(_id: String) -> void:
+	if sequencer:
+		sequencer.set_selected(pot)
 
 
 func _on_pot_clear() -> void:
-	print("[audio] pot cleared — silence")
+	if sequencer:
+		sequencer.set_selected(pot)
 
 
-func _on_cook_start(target: String) -> void:
-	print("[audio] cook start, target=", target if target != "" else "<mismatch>")
+func _on_cook_start(_target: String) -> void:
+	pass
 
 
-func _on_cook_success(cheese_name: String) -> void:
-	var tune: String = CheeseDB.CHEESE_TUNE.get(cheese_name, "")
-	print("[audio] clean chiptune for %s -> %s" % [cheese_name, tune])
+func _on_cook_success(_cheese_name: String) -> void:
+	pass
 
 
 func _on_cook_fail() -> void:
-	print("[audio] distorted chiptune (wrong recipe)")
+	pass
