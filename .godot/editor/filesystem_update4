@@ -1,2 +1,4 @@
 res://scenes/cheeseRoom.tscn
 res://scripts/game.gd
+res://scripts/cheese_db.gd
+res://scenes/main.tscn

@@ -24,14 +24,14 @@ const COOK_TIME: float = 4.0
 const LEVELS: Array = [
 	{
 		"flavor": "You have some light orders coming in.\nThe smell of warm milk fills the air.",
-		"ingredients": ["milk", "acid", "salt", "bacteria"],
+		"ingredients": ["milk", "acid", "salt", "bacteria culture"],
 		"orders": [
-			["Mozzarella", 0.0,  60.0],
-			["Mozzarella", 15.0, 60.0],
-			["Paneer",     22.0, 60.0],
-			["Mozzarella",     26.0, 60.0],
-			["Paneer",     32.0, 60.0],
-			["Mozzarella",     37.0, 55.0],
+			["Paneer", 0.0,  60.0],
+			["Paneer", 15.0, 60.0],
+			["Cream Cheese",     22.0, 60.0],
+			["Paneer",     26.0, 60.0],
+			["Cream Cheese",     32.0, 60.0],
+			["Paneer",     37.0, 55.0],
 		],
 	},
 	{
@@ -112,7 +112,7 @@ var money: int = START_MONEY
 var current_displayed_money: int = START_MONEY # ROLLING COUNTER: Tracks visual money ticker
 var money_tween: Tween                         # ROLLING COUNTER: Animates visual ticker changes
 
-# --- NEW GAME JAM ADDITIONS: STOCK & INFINITE MODE ---
+# --- STOCK & INFINITE MODE ---
 var level_stock: Array[String] = []
 var infinite_mode: bool = false
 var infinite_spawn_timer: float = 0.0
@@ -188,8 +188,6 @@ func _ready() -> void:
 
 
 # Build the synth + sequencer that drive the musical ingredient hints
-# (same setup as sound_test.gd). The sequencer runs its own _process; it stays
-# idle until a level loads a song and the player selects ingredients.
 func _init_audio() -> void:
 	synth = Synth.new()
 	add_child(synth)
@@ -378,6 +376,11 @@ func _spawn_order(cheese_name: String, duration: float) -> void:
 
 func _on_level_complete() -> void:
 	running = false
+	
+	# LEVEL COMPLETION BONUS: $10
+	money += 10
+	_refresh_money() # Animate the bonus roll-up
+	
 	current_level += 1
 	_show_interstitial(current_level)
 
@@ -580,7 +583,6 @@ func _build_pot_area() -> Control:
 	clear_btn.pressed.connect(_on_clear_pot)
 	btn_row.add_child(clear_btn)
 
-	# --- NEW PROGRESS BAR LOCATION ---
 	var progress_center = CenterContainer.new()
 	pot_progress = ProgressBar.new()
 	pot_progress.show_percentage = false
@@ -592,7 +594,7 @@ func _build_pot_area() -> Control:
 	progress_center.add_child(pot_progress)
 	wrap.add_child(progress_center)
 	
-	# --- NEW STOCK AREA ---
+	# --- STOCK AREA ---
 	wrap.add_child(_make_bold_label("Stock", 18))
 	stock_container = GridContainer.new()
 	stock_container.columns = 6
@@ -625,8 +627,6 @@ func _build_pot_center() -> Control:
 	plate_canvas.custom_minimum_size = Vector2(160, 140)
 	plate_canvas.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	container.add_child(plate_canvas)
-
-	# Removed nested Progress Bar to put it under buttons!
 
 	return panel
 
@@ -799,7 +799,7 @@ func _panel(child: Control, color: Color) -> PanelContainer:
 # Dynamic Cost Equation
 # ---------------------------------------------------------------------------
 func _get_reveal_cost(order: Dictionary) -> int:
-	return int(round(float(order["payout"]) * 0.20))
+	return int(round(float(order["payout"]) * 0.50)) # HINT COST: 50%
 
 
 # ---------------------------------------------------------------------------
@@ -1176,7 +1176,15 @@ func _refresh_pot() -> void:
 		img.position = Vector2(randf_range(0, 50), randf_range(0, 50))
 		plate_canvas.add_child(img)
 
-# --- REFRESH STOCK IMAGES ---
+# --- REFRESH STOCK IMAGES WITH TOOLTIPS ---
+func _get_cheese_hint(cheese_name: String) -> String:
+	for cheese in CheeseDB.CHEESES:
+		if cheese["name"] == cheese_name:
+			return cheese.get("hint", "")
+	if cheese_name == "Goop":
+		return "A failed experiment. Utterly inedible."
+	return ""
+
 func _refresh_stock() -> void:
 	if not stock_container:
 		return
@@ -1196,6 +1204,17 @@ func _refresh_stock() -> void:
 		img.custom_minimum_size = Vector2(40, 40)
 		img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		
+		# Hook up hover text tooltip events
+		img.mouse_filter = Control.MOUSE_FILTER_STOP
+		var hint_text = _get_cheese_hint(cheese)
+		var final_hover_text = "[color=white]" + cheese + "[/color]"
+		if hint_text != "":
+			final_hover_text += "\n[color=#b5b5b5]" + hint_text + "[/color]"
+		
+		img.mouse_entered.connect(_show_instant_tooltip.bind(final_hover_text, Color.WHITE))
+		img.mouse_exited.connect(_hide_instant_tooltip)
+		
 		stock_container.add_child(img)
 # ------------------------------
 

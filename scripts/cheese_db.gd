@@ -79,14 +79,14 @@ const INGREDIENT_PRICES: Dictionary = {
 
 ## Scaled reward structures scaled to the structural complexity of each recipe.
 const CHEESE_PAYOUT_RANGE: Dictionary = {
-	"Paneer":           Vector2i(12, 18),
-	"Mozzarella":       Vector2i(18, 25),
-	"Cream Cheese":     Vector2i(20, 28),
+	"Paneer":           Vector2i(8, 12),
+	"Mozzarella":       Vector2i(15, 23),
+	"Cream Cheese":     Vector2i(18, 25),
 	"Brie":             Vector2i(26, 38),
-	"Comte":            Vector2i(30, 44),
-	"Mozzarella (Alt)": Vector2i(35, 48),
-	"Roquefort":        Vector2i(42, 58),
-	"Taleggio":         Vector2i(48, 66),
+	"Comte":            Vector2i(30, 38),
+	"Mozzarella (Alt)": Vector2i(15, 23),
+	"Roquefort":        Vector2i(39, 44),
+	"Taleggio":         Vector2i(37, 46),
 }
 
 ## Updated track layer maps matching the clean tool-pool configuration.
