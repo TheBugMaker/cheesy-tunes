@@ -15,7 +15,7 @@ processes:
 ingredients:
   raw materials:
     - milk
-    - acid (vinegar)
+    - acid
     - salt
     - bacteria culture
     - rennet
@@ -66,22 +66,22 @@ cheese:
       - milk
       - acid
     process:
-      1. Heating (milk -> heated milk)
-      2. Coagulation (acid + heated milk -> curd-and-whey mixture)
-      3. Separation (curd-and-whey mixture -> curds + whey)
-      4. Draining (curds -> drained curds)
-      5. Pressing (drained curds -> Paneer)
+      - Heating (milk -> heated milk)
+      - Coagulation (acid + heated milk -> curd-and-whey mixture)
+      - Separation (curd-and-whey mixture -> curds + whey)
+      - Draining (curds -> drained curds)
+      - Pressing (drained curds -> Paneer)
   Cream cheese:
     ingredients:
       - milk
       - salt
       - bacteria culture
     process:
-      1. Heating (milk -> heated milk)
-      2. Bacterial fermentation (bacteria culture + heated milk -> soft curds)
-      3. Cutting (soft curds -> cut curds)
-      4. Draining (cut soft curds -> drained soft curds)
-      5. Pressing (drained soft curds -> Cream cheese)
+      - Heating (milk -> heated milk)
+      - Bacterial fermentation (bacteria culture + heated milk -> soft curds)
+      - Cutting (soft curds -> cut curds)
+      - Draining (cut soft curds -> drained soft curds)
+      - Pressing (drained soft curds -> Cream cheese)
   Comte:
     ingredients:
       - milk
@@ -89,14 +89,14 @@ cheese:
       - rennet
       - salt
     process:
-      1. Heating (milk -> heated milk)
-      2. Bacterial fermentation (bacteria culture + heated milk -> soft curd)
-      3. Coagulation (rennet + soft curd -> comte curd)
-      4. Cutting (comte curd -> cut comte curds)
-      5. Heating (cut comte curds -> cooked comte curds)
-      6. Draining (cooked comte curds -> drained comte curds)
-      7. Pressing (drained comte curds -> pressed comte curds)
-      8. Ripening (pressed comte curds + salt -> comte)
+      - Heating (milk -> heated milk)
+      - Bacterial fermentation (bacteria culture + heated milk -> soft curd)
+      - Coagulation (rennet + soft curd -> comte curd)
+      - Cutting (comte curd -> cut comte curds)
+      - Heating (cut comte curds -> cooked comte curds)
+      - Draining (cooked comte curds -> drained comte curds)
+      - Pressing (drained comte curds -> pressed comte curds)
+      - Ripening (pressed comte curds + salt -> comte)
   Mozzarella:
     ingredients:
       - milk
@@ -104,16 +104,16 @@ cheese:
       - rennet
       - salt
     process:
-      1. Heating (milk -> heated milk)
-      2. Coagulation (acid + heated milk -> curd-and-whey mixture)
-      3. Separation (curd-and-whey mixture -> curds + whey)
-      4. Coagulation (rennet + curd -> rennet curd)
-      5. Cutting (rennet curd -> cut rennet curds)
-      6. Draining (cut rennet curds -> drained rennet curds)
-      7. Ripening (drained rennet curds -> ripe curds)
-      8. Cutting (ripe curds -> cut ripe curds)
-      9. Heating (cut ripe curds -> mozzarella curds)
-      10. Salting (mozzarella curds + salt -> mozzarella)
+      - Heating (milk -> heated milk)
+      - Coagulation (acid + heated milk -> curd-and-whey mixture)
+      - Separation (curd-and-whey mixture -> curds + whey)
+      - Coagulation (rennet + curd -> rennet curd)
+      - Cutting (rennet curd -> cut rennet curds)
+      - Draining (cut rennet curds -> drained rennet curds)
+      - Ripening (drained rennet curds -> ripe curds)
+      - Cutting (ripe curds -> cut ripe curds)
+      - Heating (cut ripe curds -> mozzarella curds)
+      - Salting (mozzarella curds + salt -> mozzarella)
   Brie:
     ingredients:
       - milk
@@ -122,14 +122,14 @@ cheese:
       - bacteria culture
       - white mold
     process:
-      1. Heating (milk -> heated milk)
-      2. Bacterial fermentation (bacteria culture + heated milk -> soft curd)
-      3. Inoculation (white mold + soft curd -> inoculated curd)
-      4. Coagulation (rennet + inoculated curd -> white moldy curd)
-      5. Cutting (white moldy curd -> cut white moldy curds)
-      6. Draining (cut white moldy curds -> drained white moldy curds)
-      7. Salting (drained white moldy curds + salt -> Brie curd)
-      8. Ripening (Brie curd -> Brie)
+      - Heating (milk -> heated milk)
+      - Bacterial fermentation (bacteria culture + heated milk -> soft curd)
+      - Inoculation (white mold + soft curd -> inoculated curd)
+      - Coagulation (rennet + inoculated curd -> white moldy curd)
+      - Cutting (white moldy curd -> cut white moldy curds)
+      - Draining (cut white moldy curds -> drained white moldy curds)
+      - Salting (drained white moldy curds + salt -> Brie curd)
+      - Ripening (Brie curd -> Brie)
   Roquefort:
     ingredients:
       - milk
@@ -138,16 +138,16 @@ cheese:
       - bacteria culture
       - blue mold
     process:
-      1. Heating (milk -> heated milk)
-      2. Bacterial fermentation (bacteria culture + heated milk -> soft curd)
-      3. Inoculation (blue mold + soft curd -> inoculated curd)
-      4. Coagulation (rennet + inoculated curd -> blue moldy curd)
-      5. Cutting (blue moldy curd -> cut blue moldy curds)
-      6. Draining (cut blue moldy curds -> drained blue moldy curds)
-      7. Salting (drained blue moldy curds + salt -> Roquefort curd)
-      8. Forming (Roquefort curd -> Roquefort curd wheels)
-      9. Injecting (Roquefort curd wheels -> Roquefort wheels)
-      10. Ripening (Roquefort wheels -> Roquefort)
+      - Heating (milk -> heated milk)
+      - Bacterial fermentation (bacteria culture + heated milk -> soft curd)
+      - Inoculation (blue mold + soft curd -> inoculated curd)
+      - Coagulation (rennet + inoculated curd -> blue moldy curd)
+      - Cutting (blue moldy curd -> cut blue moldy curds)
+      - Draining (cut blue moldy curds -> drained blue moldy curds)
+      - Salting (drained blue moldy curds + salt -> Roquefort curd)
+      - Forming (Roquefort curd -> Roquefort curd wheels)
+      - Injecting (Roquefort curd wheels -> Roquefort wheels)
+      - Ripening (Roquefort wheels -> Roquefort)
   Taleggio:
     ingredients:
       - milk
@@ -156,12 +156,12 @@ cheese:
       - salt
       - wine
     process:
-      1. Heating (milk -> heated milk)
-      2. Bacterial fermentation (bacteria culture + heated milk -> soft curd)
-      3. Coagulation (rennet + soft curd -> taleggio curd)
-      4. Cutting (taleggio curd -> cut taleggio curds)
-      5. Draining (cut taleggio curds -> drained taleggio curds)
-      6. Salting (drained taleggio curds + salt -> salted taleggio curds)
-      7. Ripening (salted taleggio curds -> young taleggio)
-      8. Washing (young taleggio + wine -> washed taleggio)
-      9. Ripening (washed taleggio -> taleggio)
+      - Heating (milk -> heated milk)
+      - Bacterial fermentation (bacteria culture + heated milk -> soft curd)
+      - Coagulation (rennet + soft curd -> taleggio curd)
+      - Cutting (taleggio curd -> cut taleggio curds)
+      - Draining (cut taleggio curds -> drained taleggio curds)
+      - Salting (drained taleggio curds + salt -> salted taleggio curds)
+      - Ripening (salted taleggio curds -> young taleggio)
+      - Washing (young taleggio + wine -> washed taleggio)
+      - Ripening (washed taleggio -> taleggio)
