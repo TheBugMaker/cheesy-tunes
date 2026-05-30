@@ -1,129 +1,117 @@
 class_name CheeseDB
 extends RefCounted
-## Static data for Cheezy Tunes: the ingredient/step tiles and the cheese recipes.
+## Static data for Cheezy Tunes: the ingredient tiles and the simplified cheese recipes.
 ## Pure data — no scene logic here. Referenced statically, e.g. CheeseDB.CHEESES.
 
-## Tile id -> display label + color (placeholder programmer art).
+## Tile id -> display label + color. Completely stripped down to the active ingredients.
 const TILES: Dictionary = {
-	"milk":       {"label": "Milk",            "color": Color("f7f3e8")},
-	"culture":    {"label": "Starter Culture", "color": Color("c9d6a3")},
-	"rennet":     {"label": "Rennet",          "color": Color("d9b38c")},
-	"salt":       {"label": "Salt",            "color": Color("e8e8ee")},
-	"citric":     {"label": "Citric Acid",     "color": Color("eaf06a")},
-	"heat":       {"label": "Heat",            "color": Color("f0945a")},
-	"cut_curd":   {"label": "Cut Curd",        "color": Color("bfe3c0")},
-	"drain_whey": {"label": "Drain Whey",      "color": Color("a9d8e6")},
-	"press":      {"label": "Press",           "color": Color("b8a99a")},
-	"stretch":    {"label": "Stretch",         "color": Color("f4d06f")},
-	"white_mold": {"label": "White Mold",      "color": Color("fbfbf5")},
-	"blue_mold":  {"label": "Blue Mold",       "color": Color("8fa9d6")},
-	"brine":      {"label": "Brine",           "color": Color("9fd3d6")},
-	"propionic":  {"label": "Propionic Bact.", "color": Color("d6c98f")},
-	"age":        {"label": "Age",             "color": Color("c2a86a")},
+	"milk":     {"label": "Milk",     "color": Color("f7f3e8")},
+	"acid":     {"label": "Acid",     "color": Color("eaf06a")},
+	"salt":     {"label": "Salt",     "color": Color("e8e8ee")},
+	"bacteria": {"label": "Bacteria", "color": Color("c9d6a3")},
+	"rennet":   {"label": "Rennet",   "color": Color("d9b38c")},
+	"mold":     {"label": "Mold",     "color": Color("8fa9d6")},
+	"wine":     {"label": "Wine",     "color": Color("9e2a2b")},
 }
 
-## Each cheese: display name, a short educational hint, and the required tile set.
-## `active` controls whether it appears in the prototype's order rotation.
+## Each cheese mapped exactly to your updated rules.
+## Set 'active' to false for cheeses you want to hide until later levels.
 const CHEESES: Array[Dictionary] = [
 	{
-		"name": "Mozzarella",
-		"hint": "Fresh stretched-curd cheese — acidified, then pulled while hot.",
-		"recipe": ["milk", "citric", "rennet", "heat", "stretch", "salt"],
+		"name": "Paneer",
+		"hint": "Basic unaged cheese made by curdling milk with acid.",
+		"recipe": ["milk", "acid"],
 		"active": true,
 	},
 	{
-		"name": "Cheddar",
-		"hint": "Firm aged cheese — curds are cut, drained and pressed.",
-		"recipe": ["milk", "culture", "rennet", "cut_curd", "drain_whey", "salt", "press"],
+		"name": "Mozzarella",
+		"hint": "Fresh curd cheese made simple with milk, acid, and salt.",
+		"recipe": ["milk", "acid", "salt"],
 		"active": true,
+	},
+	{
+		"name": "Cream Cheese",
+		"hint": "Smooth, mild tasting fresh cheese enriched with bacteria.",
+		"recipe": ["milk", "salt", "bacteria"],
+		"active": true, # Set to false if you want it completely locked out of level 1 rotation
 	},
 	{
 		"name": "Brie",
-		"hint": "Soft cheese ripened by a bloomy white surface mold.",
-		"recipe": ["milk", "culture", "rennet", "drain_whey", "salt", "white_mold"],
+		"hint": "Soft, creamy surface-ripened cheese.",
+		"recipe": ["milk", "salt", "acid", "bacteria"],
 		"active": true,
 	},
 	{
-		"name": "Blue Cheese",
-		"hint": "Veined cheese cultured with blue Penicillium mold.",
-		"recipe": ["milk", "culture", "rennet", "salt", "blue_mold"],
-		"active": false,
+		"name": "Comte",
+		"hint": "Hard pressed cheese made with bacteria and rennet.",
+		"recipe": ["milk", "bacteria", "rennet", "salt"],
+		"active": true,
 	},
 	{
-		"name": "Feta",
-		"hint": "Brined curd cheese, cut and cured in salty brine.",
-		"recipe": ["milk", "culture", "rennet", "cut_curd", "salt", "brine"],
-		"active": false,
+		"name": "Roquefort",
+		"hint": "Intense blue-veined sheep milk cheese containing pungent mold.",
+		"recipe": ["milk", "salt", "rennet", "bacteria", "mold"],
+		"active": true,
 	},
 	{
-		"name": "Swiss",
-		"hint": "Aged cheese with eyes (holes) from propionic bacteria.",
-		"recipe": ["milk", "culture", "rennet", "propionic", "press", "age"],
-		"active": false,
+		"name": "Taleggio",
+		"hint": "Smelly, wash-rind cheese regularly wiped down with wine.",
+		"recipe": ["milk", "bacteria", "rennet", "salt", "wine"],
+		"active": true,
 	},
 ]
 
-## Distractor tiles that are never required by an active recipe — added difficulty.
-const DISTRACTORS: PackedStringArray = ["blue_mold", "brine", "propionic", "age"]
+## Every ingredient is used, so the distractor array is completely empty now.
+## Kept as an empty array to prevent the main script loop from breaking.
+const DISTRACTORS: PackedStringArray = []
 
 
-## Cost in $ to buy one unit of each ingredient.
+## Adjusted cost parameters in $ for your 7 unique components.
 const INGREDIENT_PRICES: Dictionary = {
-	"milk":       3,
-	"culture":    4,
-	"rennet":     5,
-	"salt":       2,
-	"citric":     2,
-	"heat":       1,
-	"cut_curd":   1,
-	"drain_whey": 1,
-	"press":      1,
-	"stretch":    1,
-	"white_mold": 4,
-	"blue_mold":  4,
-	"brine":      2,
-	"propionic":  3,
-	"age":        2,
+	"milk":     3,
+	"acid":     2,
+	"salt":     2,
+	"bacteria": 4,
+	"rennet":   5,
+	"mold":     4,
+	"wine":     6,
 }
 
-## Min/max payout per fulfilled order (rolled at spawn). Keyed by cheese name.
+## Scaled reward structures scaled to the structural complexity of each recipe.
 const CHEESE_PAYOUT_RANGE: Dictionary = {
-	"Mozzarella":  Vector2i(20, 30),
-	"Cheddar":     Vector2i(30, 45),
-	"Brie":        Vector2i(25, 40),
-	"Blue Cheese": Vector2i(28, 42),
-	"Feta":        Vector2i(22, 34),
-	"Swiss":       Vector2i(32, 48),
+	"Paneer":         Vector2i(12, 18),
+	"Mozzarella":     Vector2i(18, 25),
+	"Cream Cheese":   Vector2i(20, 28),
+	"Brie":           Vector2i(26, 38),
+	"Comte":          Vector2i(30, 44),
+	"Mozzarella (Alt)": Vector2i(35, 48),
+	"Roquefort":      Vector2i(42, 58),
+	"Taleggio":       Vector2i(48, 66),
 }
 
-## Audio hook (future): each ingredient maps to a musical role in the cheese's tune.
+## Updated track layer maps matching the clean tool-pool configuration.
 const MUSIC_COMPONENT: Dictionary = {
-	"milk":       "bass",
-	"culture":    "harmony",
-	"rennet":     "lead",
-	"salt":       "percussion",
-	"citric":     "arpeggio",
-	"heat":       "riser",
-	"cut_curd":   "stab",
-	"drain_whey": "sweep",
-	"press":      "kick",
-	"stretch":    "glide",
-	"white_mold": "pad",
-	"blue_mold":  "dissonant_pad",
-	"brine":      "shaker",
-	"propionic":  "bubble",
-	"age":        "sustain",
+	"milk":     "bass",
+	"acid":     "arpeggio",
+	"salt":     "percussion",
+	"bacteria": "harmony",
+	"rennet":   "lead",
+	"mold":     "pad",
+	"wine":     "sweep",
 }
 
-## Audio hook (future): path to the clean chiptune for each cheese. Files not yet shipped.
+## Clean audio target hooks for your updated cheese library.
 const CHEESE_TUNE: Dictionary = {
-	"Mozzarella":  "res://audio/mozzarella.ogg",
-	"Cheddar":     "res://audio/cheddar.ogg",
-	"Brie":        "res://audio/brie.ogg",
-	"Blue Cheese": "res://audio/blue_cheese.ogg",
-	"Feta":        "res://audio/feta.ogg",
-	"Swiss":       "res://audio/swiss.ogg",
+	"Paneer":         "res://audio/paneer.ogg",
+	"Mozzarella":     "res://audio/mozzarella.ogg",
+	"Cream Cheese":   "res://audio/cream_cheese.ogg",
+	"Brie":           "res://audio/brie.ogg",
+	"Comte":          "res://audio/comte.ogg",
+	"Mozzarella (Alt)": "res://audio/mozzarella_alt.ogg",
+	"Roquefort":      "res://audio/roquefort.ogg",
+	"Taleggio":       "res://audio/taleggio.ogg",
 }
+
 
 ## Cheapest ingredient currently in the price table — used for bankruptcy checks.
 static func cheapest_ingredient_price() -> int:
