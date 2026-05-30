@@ -1,54 +1,64 @@
 extends Control
-## Cheezy Tunes — timed service-rush game manager.
-## Builds the whole UI in code (placeholder programmer art) and runs the loop:
-## show a cheese order -> player clicks ingredient/step tiles -> Serve -> score
-## or strike. 3 strikes ends the game.
+## Cheezy Tunes — pot-and-cook cheese factory.
+## Buy ingredients with money, click them into the central pot, press Cook to
+## produce a wheel. Wheels auto-fulfill matching orders from a timed queue.
+## Wrong recipes waste the ingredients in the pot.
 
-const START_TIME := 12.0   # seconds for the first order
-const MIN_TIME := 5.0      # floor as orders speed up
-const TIME_DECAY := 0.4    # seconds shaved off each completed order
-const MAX_STRIKES := 3
+const START_MONEY := 50
+const COOK_TIME := 4.0
+const ORDER_TIME_MIN := 20.0
+const ORDER_TIME_MAX := 35.0
+const MAX_ORDERS := 4
 
 # --- runtime state ---
-var score := 0
-var best := 0
-var strikes := 0
-var order_time := START_TIME
-var time_left := 0.0
-var current_cheese: Dictionary = {}
-var selected: Array[String] = []
-var running := false
+var money: int = START_MONEY
+var score: int = 0
+var inventory: Dictionary = {}        # ingredient_id -> int
+var pot: Array[String] = []           # ingredient_ids in click order
+var cooking: bool = false
+var cook_progress: float = 0.0
+var cook_target: String = ""          # cheese name, "" if mismatch
+var stock: Dictionary = {}            # cheese_name -> int
+var orders: Array = []                # {cheese, time_left, time_max, payout}
+var running: bool = false
 
-# --- node references (created in _build_ui) ---
-var order_label: Label
-var hint_label: Label
+# --- node references ---
+var money_label: Label
 var score_label: Label
-var strikes_label: Label
-var best_label: Label
-var timer_bar: ProgressBar
-var vat_box: HFlowContainer
-var tile_buttons: Dictionary = {}   # tile_id -> Button
+var orders_box: VBoxContainer
+var stock_box: VBoxContainer
+var pot_label: Label
+var pot_progress: ProgressBar
+var cook_btn: Button
+var clear_btn: Button
+var inventory_row: HBoxContainer
+var ingredient_ring: GridContainer
 var overlay: Panel
 var overlay_label: Label
-var card_panel: PanelContainer
-var card_style: StyleBoxFlat
+
+var inv_labels: Dictionary = {}       # ingredient_id -> Label (count in inventory row)
+var buy_buttons: Dictionary = {}      # ingredient_id -> Button (buy [+])
+var ring_buttons: Dictionary = {}     # ingredient_id -> Button (click-into-pot)
+var stock_labels: Dictionary = {}     # cheese_name -> Label
 
 
 func _ready() -> void:
+	randomize()
 	_build_ui()
-	_update_strikes()
-	start_new_order()
+	_init_inventory()
+	_refill_orders()
+	running = true
+	_refresh_all()
 
 
 func _process(delta: float) -> void:
 	if not running:
 		return
-	time_left = max(0.0, time_left - delta)
-	timer_bar.value = time_left
-	# tint the timer red as it runs low
-	timer_bar.modulate = Color(1, 1, 1) if time_left > order_time * 0.33 else Color(1, 0.5, 0.5)
-	if time_left <= 0.0:
-		fail_order("Time's up!")
+	_tick_cook(delta)
+	_tick_orders(delta)
+	_auto_fulfill()
+	if _is_game_over():
+		_show_game_over()
 
 
 # ---------------------------------------------------------------------------
@@ -57,7 +67,6 @@ func _process(delta: float) -> void:
 func _build_ui() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 
-	# background
 	var bg := ColorRect.new()
 	bg.color = Color("2b2418")
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -66,152 +75,220 @@ func _build_ui() -> void:
 
 	var root := MarginContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_constant_override("margin_left", 24)
-	root.add_theme_constant_override("margin_right", 24)
-	root.add_theme_constant_override("margin_top", 20)
-	root.add_theme_constant_override("margin_bottom", 20)
+	root.add_theme_constant_override("margin_left", 20)
+	root.add_theme_constant_override("margin_right", 20)
+	root.add_theme_constant_override("margin_top", 16)
+	root.add_theme_constant_override("margin_bottom", 16)
 	add_child(root)
 
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 16)
+	col.add_theme_constant_override("separation", 14)
 	root.add_child(col)
 
-	# --- top bar: score | strikes | best ---
+	# --- top bar: money | score ---
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 24)
 	col.add_child(top)
-
-	score_label = _make_label("Score: 0", 22)
-	top.add_child(score_label)
-
+	money_label = _make_label("Money: $%d" % money, 24)
+	top.add_child(money_label)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(spacer)
+	score_label = _make_label("Score: 0", 24)
+	top.add_child(score_label)
 
-	strikes_label = _make_label("", 22)
-	top.add_child(strikes_label)
+	# --- middle: orders+stock (left) | pot (right) ---
+	var mid := HBoxContainer.new()
+	mid.add_theme_constant_override("separation", 16)
+	mid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	col.add_child(mid)
 
-	best_label = _make_label("Best: 0", 22)
-	top.add_child(best_label)
+	var left := VBoxContainer.new()
+	left.add_theme_constant_override("separation", 12)
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.size_flags_stretch_ratio = 1.0
+	mid.add_child(left)
+	left.add_child(_make_label("Orders:", 20))
+	orders_box = VBoxContainer.new()
+	orders_box.add_theme_constant_override("separation", 6)
+	left.add_child(_panel(orders_box, Color("3a2f1c")))
+	left.add_child(_make_label("Stock:", 20))
+	stock_box = VBoxContainer.new()
+	stock_box.add_theme_constant_override("separation", 4)
+	left.add_child(_panel(stock_box, Color("241d12")))
 
-	# --- order card ---
-	card_panel = PanelContainer.new()
-	card_style = StyleBoxFlat.new()
-	card_style.bg_color = Color("4a3d24")
-	card_style.set_corner_radius_all(10)
-	card_style.set_content_margin_all(16)
-	card_panel.add_theme_stylebox_override("panel", card_style)
-	col.add_child(card_panel)
+	var right := VBoxContainer.new()
+	right.add_theme_constant_override("separation", 10)
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.size_flags_stretch_ratio = 1.4
+	mid.add_child(right)
+	right.add_child(_build_pot_area())
 
-	var card_col := VBoxContainer.new()
-	card_col.add_theme_constant_override("separation", 6)
-	card_panel.add_child(card_col)
+	# --- bottom: buy strip ---
+	col.add_child(_make_label("Buy ingredients:", 18))
+	inventory_row = HBoxContainer.new()
+	inventory_row.add_theme_constant_override("separation", 6)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 78)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.add_child(inventory_row)
+	col.add_child(scroll)
+	_build_buy_strip()
 
-	order_label = _make_label("Make: ...", 34)
-	card_col.add_child(order_label)
-	hint_label = _make_label("", 16)
-	hint_label.modulate = Color(1, 1, 1, 0.7)
-	hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	card_col.add_child(hint_label)
-
-	# --- timer bar ---
-	timer_bar = ProgressBar.new()
-	timer_bar.show_percentage = false
-	timer_bar.min_value = 0.0
-	timer_bar.max_value = START_TIME
-	timer_bar.custom_minimum_size = Vector2(0, 22)
-	col.add_child(timer_bar)
-
-	# --- vat (selected tiles) ---
-	var vat_title := _make_label("Vat:", 18)
-	col.add_child(vat_title)
-	var vat_panel := PanelContainer.new()
-	var vat_style := StyleBoxFlat.new()
-	vat_style.bg_color = Color("211b12")
-	vat_style.set_corner_radius_all(8)
-	vat_style.set_content_margin_all(12)
-	vat_panel.add_theme_stylebox_override("panel", vat_style)
-	vat_panel.custom_minimum_size = Vector2(0, 80)
-	col.add_child(vat_panel)
-	vat_box = HFlowContainer.new()
-	vat_box.add_theme_constant_override("h_separation", 8)
-	vat_box.add_theme_constant_override("v_separation", 8)
-	vat_panel.add_child(vat_box)
-
-	# --- ingredient/step tiles ---
-	var tiles_title := _make_label("Ingredients & Steps:", 18)
-	col.add_child(tiles_title)
-	var grid := GridContainer.new()
-	grid.columns = 5
-	grid.add_theme_constant_override("h_separation", 10)
-	grid.add_theme_constant_override("v_separation", 10)
-	col.add_child(grid)
-
-	for tile_id in CheeseDB.get_tile_pool():
-		var data: Dictionary = CheeseDB.TILES[tile_id]
-		var btn := Button.new()
-		btn.text = data["label"]
-		btn.custom_minimum_size = Vector2(180, 52)
-		btn.toggle_mode = true
-		btn.focus_mode = Control.FOCUS_NONE
-		_style_tile_button(btn, data["color"])
-		btn.toggled.connect(_on_tile_toggled.bind(tile_id))
-		grid.add_child(btn)
-		tile_buttons[tile_id] = btn
-
-	# --- action row ---
-	var actions := HBoxContainer.new()
-	actions.add_theme_constant_override("separation", 16)
-	col.add_child(actions)
-
-	var serve_btn := Button.new()
-	serve_btn.text = "Serve"
-	serve_btn.custom_minimum_size = Vector2(160, 56)
-	serve_btn.add_theme_font_size_override("font_size", 22)
-	serve_btn.pressed.connect(serve)
-	actions.add_child(serve_btn)
-
-	var clear_btn := Button.new()
-	clear_btn.text = "Clear"
-	clear_btn.custom_minimum_size = Vector2(160, 56)
-	clear_btn.add_theme_font_size_override("font_size", 22)
-	clear_btn.pressed.connect(_on_clear_pressed)
-	actions.add_child(clear_btn)
-
-	# --- game over overlay ---
 	_build_overlay()
+
+
+func _build_pot_area() -> Control:
+	# Pot on top, then a flow of every active ingredient below it so nothing is hidden.
+	var wrap := VBoxContainer.new()
+	wrap.add_theme_constant_override("separation", 10)
+	wrap.add_child(_make_label("Pot — click ingredients to compose, then Cook", 18))
+
+	var pot_center_wrap := CenterContainer.new()
+	pot_center_wrap.add_child(_build_pot_center())
+	wrap.add_child(pot_center_wrap)
+
+	wrap.add_child(_make_label("Ingredients on hand:", 16))
+
+	ingredient_ring = GridContainer.new()
+	ingredient_ring.columns = 4
+	ingredient_ring.add_theme_constant_override("h_separation", 8)
+	ingredient_ring.add_theme_constant_override("v_separation", 8)
+	wrap.add_child(ingredient_ring)
+
+	for id in _all_ingredient_ids():
+		ingredient_ring.add_child(_build_ring_button(id))
+
+	var btn_row := HBoxContainer.new()
+	btn_row.add_theme_constant_override("separation", 12)
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	wrap.add_child(btn_row)
+	cook_btn = Button.new()
+	cook_btn.text = "Cook"
+	cook_btn.custom_minimum_size = Vector2(140, 48)
+	cook_btn.add_theme_font_size_override("font_size", 20)
+	cook_btn.pressed.connect(_on_cook_pressed)
+	btn_row.add_child(cook_btn)
+	clear_btn = Button.new()
+	clear_btn.text = "Clear (waste)"
+	clear_btn.custom_minimum_size = Vector2(140, 48)
+	clear_btn.add_theme_font_size_override("font_size", 18)
+	clear_btn.pressed.connect(_on_clear_pot)
+	btn_row.add_child(clear_btn)
+
+	return wrap
+
+
+func _build_pot_center() -> Control:
+	var panel := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color("3d2f1a")
+	sb.set_corner_radius_all(60)
+	sb.set_content_margin_all(10)
+	sb.set_border_width_all(3)
+	sb.border_color = Color("7a5a2a")
+	panel.add_theme_stylebox_override("panel", sb)
+	panel.custom_minimum_size = Vector2(180, 160)
+
+	var inner := VBoxContainer.new()
+	inner.alignment = BoxContainer.ALIGNMENT_CENTER
+	inner.add_theme_constant_override("separation", 6)
+	panel.add_child(inner)
+
+	pot_label = _make_label("(empty)", 14)
+	pot_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	pot_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	pot_label.custom_minimum_size = Vector2(160, 80)
+	inner.add_child(pot_label)
+
+	pot_progress = ProgressBar.new()
+	pot_progress.show_percentage = false
+	pot_progress.min_value = 0.0
+	pot_progress.max_value = 1.0
+	pot_progress.value = 0.0
+	pot_progress.custom_minimum_size = Vector2(150, 16)
+	pot_progress.visible = false
+	inner.add_child(pot_progress)
+	return panel
+
+
+func _build_ring_button(id: String) -> Button:
+	var data: Dictionary = CheeseDB.TILES[id]
+	var btn := Button.new()
+	btn.text = data["label"]
+	btn.custom_minimum_size = Vector2(130, 56)
+	btn.focus_mode = Control.FOCUS_NONE
+	_style_tile_button(btn, data["color"])
+	btn.pressed.connect(_on_ring_clicked.bind(id))
+	ring_buttons[id] = btn
+	return btn
+
+
+func _build_buy_strip() -> void:
+	for id in _all_ingredient_ids():
+		var data: Dictionary = CheeseDB.TILES[id]
+		var price: int = CheeseDB.INGREDIENT_PRICES[id]
+		var card := PanelContainer.new()
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color("1a140b")
+		sb.set_corner_radius_all(6)
+		sb.set_content_margin_all(6)
+		card.add_theme_stylebox_override("panel", sb)
+		card.custom_minimum_size = Vector2(140, 64)
+		var v := VBoxContainer.new()
+		v.add_theme_constant_override("separation", 2)
+		card.add_child(v)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		v.add_child(row)
+		var swatch := ColorRect.new()
+		swatch.color = data["color"]
+		swatch.custom_minimum_size = Vector2(14, 14)
+		row.add_child(swatch)
+		var name_lbl := _make_label("%s  $%d" % [data["label"], price], 13)
+		row.add_child(name_lbl)
+		var bottom := HBoxContainer.new()
+		bottom.add_theme_constant_override("separation", 6)
+		v.add_child(bottom)
+		var count_lbl := _make_label("x0", 14)
+		bottom.add_child(count_lbl)
+		inv_labels[id] = count_lbl
+		var btn := Button.new()
+		btn.text = "[+]"
+		btn.custom_minimum_size = Vector2(40, 28)
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.pressed.connect(_on_buy.bind(id))
+		bottom.add_child(btn)
+		buy_buttons[id] = btn
+		inventory_row.add_child(card)
 
 
 func _build_overlay() -> void:
 	overlay = Panel.new()
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	var ov_style := StyleBoxFlat.new()
-	ov_style.bg_color = Color(0, 0, 0, 0.8)
+	ov_style.bg_color = Color(0, 0, 0, 0.82)
 	overlay.add_theme_stylebox_override("panel", ov_style)
 	overlay.visible = false
 	add_child(overlay)
-
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	overlay.add_child(center)
-
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 20)
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	center.add_child(box)
-
-	var title := _make_label("Game Over", 48)
+	var title := _make_label("Bankrupt!", 48)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
-
-	overlay_label = _make_label("", 24)
+	overlay_label = _make_label("", 22)
 	overlay_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(overlay_label)
-
 	var restart_btn := Button.new()
 	restart_btn.text = "Restart"
 	restart_btn.custom_minimum_size = Vector2(200, 56)
-	restart_btn.add_theme_font_size_override("font_size", 24)
+	restart_btn.add_theme_font_size_override("font_size", 22)
 	restart_btn.pressed.connect(restart)
 	box.add_child(restart_btn)
 
@@ -223,168 +300,189 @@ func _make_label(text: String, font_size: int) -> Label:
 	return lbl
 
 
+func _panel(child: Control, color: Color) -> PanelContainer:
+	var p := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = color
+	sb.set_corner_radius_all(6)
+	sb.set_content_margin_all(10)
+	p.add_theme_stylebox_override("panel", sb)
+	p.add_child(child)
+	return p
+
+
 func _style_tile_button(btn: Button, color: Color) -> void:
-	# dark text on the tile's pastel color; brighter when toggled on.
 	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
 		var sb := StyleBoxFlat.new()
-		sb.bg_color = color
+		sb.bg_color = color if state != "disabled" else color.darkened(0.4)
 		sb.set_corner_radius_all(8)
 		sb.set_content_margin_all(6)
-		btn.add_theme_stylebox_override(state, sb)
-	# selected (toggled) state gets a highlight border
-	for state in ["pressed", "hover_pressed"]:
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = color.lightened(0.15)
-		sb.set_corner_radius_all(8)
-		sb.set_content_margin_all(6)
-		sb.set_border_width_all(4)
-		sb.border_color = Color("ffffff")
 		btn.add_theme_stylebox_override(state, sb)
 	btn.add_theme_color_override("font_color", Color("221c10"))
 	btn.add_theme_color_override("font_hover_color", Color("221c10"))
 	btn.add_theme_color_override("font_pressed_color", Color("221c10"))
-	btn.add_theme_color_override("font_focus_color", Color("221c10"))
-	btn.add_theme_font_size_override("font_size", 16)
+	btn.add_theme_color_override("font_disabled_color", Color("221c10"))
+	btn.add_theme_font_size_override("font_size", 15)
 
 
 # ---------------------------------------------------------------------------
-# Game loop
+# Ingredient sets
 # ---------------------------------------------------------------------------
-func start_new_order() -> void:
-	var cheeses := CheeseDB.get_active_cheeses()
-	current_cheese = cheeses[randi() % cheeses.size()]
-	selected.clear()
-	_reset_tiles()
-	_refresh_vat()
-	order_label.text = "Make: %s" % current_cheese["name"]
-	hint_label.text = current_cheese["hint"]
-	time_left = order_time
-	timer_bar.max_value = order_time
-	timer_bar.value = order_time
-	running = true
+## Ingredients used by any active cheese — what the player buys & composes with.
+func _all_ingredient_ids() -> PackedStringArray:
+	var seen := {}
+	for cheese in CheeseDB.get_active_cheeses():
+		for id in cheese["recipe"]:
+			seen[id] = true
+	var out := PackedStringArray()
+	for id in CheeseDB.TILES.keys():
+		if seen.has(id):
+			out.append(id)
+	return out
 
 
-func _on_tile_toggled(pressed: bool, tile_id: String) -> void:
+# ---------------------------------------------------------------------------
+# Game loop pieces
+# ---------------------------------------------------------------------------
+func _init_inventory() -> void:
+	for id in _all_ingredient_ids():
+		inventory[id] = 0
+	for cheese in CheeseDB.get_active_cheeses():
+		stock[cheese["name"]] = 0
+
+
+func _on_buy(id: String) -> void:
 	if not running:
 		return
-	if pressed:
-		if not selected.has(tile_id):
-			selected.append(tile_id)
-	else:
-		selected.erase(tile_id)
-	_refresh_vat()
-
-
-func _on_clear_pressed() -> void:
-	if not running:
+	var price: int = CheeseDB.INGREDIENT_PRICES[id]
+	if money < price:
 		return
-	selected.clear()
-	_reset_tiles()
-	_refresh_vat()
+	money -= price
+	inventory[id] = int(inventory.get(id, 0)) + 1
+	_refresh_money()
+	_refresh_inventory()
 
 
-func serve() -> void:
-	if not running:
+func _on_ring_clicked(id: String) -> void:
+	if not running or cooking:
 		return
-	var recipe: Array = current_cheese["recipe"]
-	if _same_set(selected, recipe):
-		complete_order()
-	else:
-		fail_order("Wrong recipe!")
-
-
-func complete_order() -> void:
-	score += 1
-	score_label.text = "Score: %d" % score
-	order_time = max(MIN_TIME, order_time - TIME_DECAY)
-	_flash_card(Color("3e7d3a"))
-	start_new_order()
-
-
-func fail_order(reason: String) -> void:
-	strikes += 1
-	_update_strikes()
-	_flash_card(Color("8a2f2f"))
-	if strikes >= MAX_STRIKES:
-		game_over()
-	else:
-		hint_label.text = reason
-		# brief beat so the player sees the result, then next order
-		await get_tree().create_timer(0.6).timeout
-		if running and strikes < MAX_STRIKES:
-			start_new_order()
-
-
-func game_over() -> void:
-	running = false
-	best = max(best, score)
-	best_label.text = "Best: %d" % best
-	overlay_label.text = "You served %d cheese%s.\nBest: %d" % [
-		score, ("" if score == 1 else "s"), best
-	]
-	overlay.visible = true
-
-
-func restart() -> void:
-	score = 0
-	strikes = 0
-	order_time = START_TIME
-	score_label.text = "Score: 0"
-	_update_strikes()
-	overlay.visible = false
-	start_new_order()
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-func _refresh_vat() -> void:
-	for child in vat_box.get_children():
-		child.queue_free()
-	if selected.is_empty():
-		var empty := _make_label("(empty)", 16)
-		empty.modulate = Color(1, 1, 1, 0.4)
-		vat_box.add_child(empty)
+	if int(inventory.get(id, 0)) <= 0:
 		return
-	for tile_id in selected:
-		var data: Dictionary = CheeseDB.TILES[tile_id]
-		var chip := PanelContainer.new()
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = data["color"]
-		sb.set_corner_radius_all(14)
-		sb.set_content_margin_all(8)
-		chip.add_theme_stylebox_override("panel", sb)
-		var lbl := Label.new()
-		lbl.text = data["label"]
-		lbl.add_theme_font_size_override("font_size", 16)
-		lbl.add_theme_color_override("font_color", Color("221c10"))
-		chip.add_child(lbl)
-		vat_box.add_child(chip)
+	inventory[id] -= 1
+	pot.append(id)
+	_on_pot_add(id)
+	_refresh_inventory()
+	_refresh_pot()
 
 
-func _reset_tiles() -> void:
-	for tile_id in tile_buttons:
-		tile_buttons[tile_id].set_pressed_no_signal(false)
+func _on_clear_pot() -> void:
+	if not running or cooking:
+		return
+	if pot.is_empty():
+		return
+	_on_pot_clear()
+	pot.clear()
+	_refresh_pot()
 
 
-func _update_strikes() -> void:
-	var marks := ""
-	for i in range(MAX_STRIKES):
-		marks += "X" if i < strikes else "O"
-	strikes_label.text = "Strikes: " + marks
+func _on_cook_pressed() -> void:
+	if not running or cooking or pot.is_empty():
+		return
+	cook_target = _match_recipe(pot)
+	cooking = true
+	cook_progress = 0.0
+	pot_progress.visible = true
+	pot_progress.value = 0.0
+	cook_btn.disabled = true
+	clear_btn.disabled = true
+	_on_cook_start(cook_target)
+	_refresh_pot()
 
 
-func _flash_card(color: Color) -> void:
-	var original := Color("4a3d24")
-	card_style.bg_color = color
-	var tween := create_tween()
-	tween.tween_method(
-		func(c: Color): card_style.bg_color = c,
-		color, original, 0.5
-	)
+func _tick_cook(delta: float) -> void:
+	if not cooking:
+		return
+	cook_progress = min(1.0, cook_progress + delta / COOK_TIME)
+	pot_progress.value = cook_progress
+	if cook_progress >= 1.0:
+		_finish_cook()
 
 
-## True if `a` and `b` contain exactly the same set of tile ids (order ignored).
+func _finish_cook() -> void:
+	if cook_target != "":
+		stock[cook_target] = int(stock.get(cook_target, 0)) + 1
+		_on_cook_success(cook_target)
+	else:
+		_on_cook_fail()
+	pot.clear()
+	cooking = false
+	cook_progress = 0.0
+	pot_progress.visible = false
+	cook_btn.disabled = false
+	clear_btn.disabled = false
+	cook_target = ""
+	_refresh_pot()
+	_refresh_stock()
+
+
+func _tick_orders(delta: float) -> void:
+	var i := orders.size() - 1
+	while i >= 0:
+		orders[i]["time_left"] -= delta
+		if orders[i]["time_left"] <= 0.0:
+			orders.remove_at(i)
+		i -= 1
+	_refill_orders()
+	_refresh_orders()
+
+
+func _auto_fulfill() -> void:
+	var changed := false
+	var i := 0
+	while i < orders.size():
+		var cheese: String = orders[i]["cheese"]
+		if int(stock.get(cheese, 0)) > 0:
+			stock[cheese] -= 1
+			money += int(orders[i]["payout"])
+			score += 1
+			orders.remove_at(i)
+			changed = true
+		else:
+			i += 1
+	if changed:
+		_refresh_money()
+		_refresh_score()
+		_refresh_stock()
+		_refresh_orders()
+		_refill_orders()
+
+
+func _refill_orders() -> void:
+	var active := CheeseDB.get_active_cheeses()
+	if active.is_empty():
+		return
+	while orders.size() < MAX_ORDERS:
+		var cheese: Dictionary = active[randi() % active.size()]
+		var cheese_name: String = cheese["name"]
+		var rng: Vector2i = CheeseDB.CHEESE_PAYOUT_RANGE.get(cheese_name, Vector2i(20, 30))
+		var payout: int = rng.x + (randi() % max(1, rng.y - rng.x + 1))
+		var t := randf_range(ORDER_TIME_MIN, ORDER_TIME_MAX)
+		orders.append({
+			"cheese": cheese_name,
+			"time_left": t,
+			"time_max": t,
+			"payout": payout,
+		})
+
+
+## Returns the cheese name whose recipe set-equals `current_pot`, or "" if none.
+func _match_recipe(current_pot: Array[String]) -> String:
+	for cheese in CheeseDB.get_active_cheeses():
+		if _same_set(current_pot, cheese["recipe"]):
+			return cheese["name"]
+	return ""
+
+
 func _same_set(a: Array, b: Array) -> bool:
 	if a.size() != b.size():
 		return false
@@ -392,3 +490,179 @@ func _same_set(a: Array, b: Array) -> bool:
 		if not a.has(item):
 			return false
 	return true
+
+
+# ---------------------------------------------------------------------------
+# Game over / restart
+# ---------------------------------------------------------------------------
+func _is_game_over() -> bool:
+	if cooking:
+		return false
+	# Any stock we hold could still fulfill an order, so we're alive.
+	for cheese_name in stock.keys():
+		if int(stock[cheese_name]) > 0:
+			return false
+	# Pot already has ingredients in it — player can still try to cook.
+	if not pot.is_empty():
+		return false
+	# Can we afford to make any cheese currently ordered?
+	for order in orders:
+		if _can_afford_recipe(order["cheese"]):
+			return false
+	return true
+
+
+func _can_afford_recipe(cheese_name: String) -> bool:
+	for cheese in CheeseDB.CHEESES:
+		if cheese["name"] != cheese_name:
+			continue
+		var needed: Dictionary = {}
+		for id in cheese["recipe"]:
+			needed[id] = int(needed.get(id, 0)) + 1
+		var cash := money
+		for id in needed.keys():
+			var have: int = int(inventory.get(id, 0))
+			var short: int = max(0, int(needed[id]) - have)
+			cash -= short * int(CheeseDB.INGREDIENT_PRICES[id])
+			if cash < 0:
+				return false
+		return true
+	return false
+
+
+func _show_game_over() -> void:
+	running = false
+	overlay_label.text = "You fulfilled %d order%s.\nFinal money: $%d" % [
+		score, ("" if score == 1 else "s"), money,
+	]
+	overlay.visible = true
+
+
+func restart() -> void:
+	money = START_MONEY
+	score = 0
+	pot.clear()
+	cooking = false
+	cook_progress = 0.0
+	cook_target = ""
+	for id in inventory.keys():
+		inventory[id] = 0
+	for cheese_name in stock.keys():
+		stock[cheese_name] = 0
+	orders.clear()
+	_refill_orders()
+	pot_progress.visible = false
+	cook_btn.disabled = false
+	clear_btn.disabled = false
+	overlay.visible = false
+	running = true
+	_refresh_all()
+
+
+# ---------------------------------------------------------------------------
+# UI refresh
+# ---------------------------------------------------------------------------
+func _refresh_all() -> void:
+	_refresh_money()
+	_refresh_score()
+	_refresh_inventory()
+	_refresh_pot()
+	_refresh_stock()
+	_refresh_orders()
+
+
+func _refresh_money() -> void:
+	money_label.text = "Money: $%d" % money
+
+
+func _refresh_score() -> void:
+	score_label.text = "Score: %d" % score
+
+
+func _refresh_inventory() -> void:
+	for id in inv_labels.keys():
+		inv_labels[id].text = "x%d" % int(inventory.get(id, 0))
+		var price: int = CheeseDB.INGREDIENT_PRICES[id]
+		buy_buttons[id].disabled = money < price
+
+
+func _refresh_pot() -> void:
+	if pot.is_empty():
+		pot_label.text = "(empty)" if not cooking else "(cooking…)"
+	else:
+		var parts: Array[String] = []
+		for id in pot:
+			parts.append(CheeseDB.TILES[id]["label"])
+		pot_label.text = ", ".join(parts)
+	cook_btn.disabled = cooking or pot.is_empty()
+	clear_btn.disabled = cooking or pot.is_empty()
+
+
+func _refresh_stock() -> void:
+	for child in stock_box.get_children():
+		child.queue_free()
+	stock_labels.clear()
+	var any := false
+	for cheese_name in stock.keys():
+		var count: int = int(stock[cheese_name])
+		if count <= 0:
+			continue
+		any = true
+		var lbl := _make_label("%s x%d" % [cheese_name, count], 16)
+		stock_box.add_child(lbl)
+		stock_labels[cheese_name] = lbl
+	if not any:
+		var empty := _make_label("(none)", 14)
+		empty.modulate = Color(1, 1, 1, 0.5)
+		stock_box.add_child(empty)
+
+
+func _refresh_orders() -> void:
+	for child in orders_box.get_children():
+		child.queue_free()
+	if orders.is_empty():
+		var empty := _make_label("(no orders)", 14)
+		empty.modulate = Color(1, 1, 1, 0.5)
+		orders_box.add_child(empty)
+		return
+	for order in orders:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		var name_lbl := _make_label(order["cheese"], 16)
+		name_lbl.custom_minimum_size = Vector2(110, 0)
+		row.add_child(name_lbl)
+		var time_lbl := _make_label("%ds" % int(ceil(order["time_left"])), 16)
+		time_lbl.custom_minimum_size = Vector2(48, 0)
+		if order["time_left"] < order["time_max"] * 0.33:
+			time_lbl.modulate = Color(1, 0.55, 0.55)
+		row.add_child(time_lbl)
+		var pay_lbl := _make_label("+$%d" % int(order["payout"]), 16)
+		pay_lbl.modulate = Color(0.7, 1.0, 0.7)
+		row.add_child(pay_lbl)
+		orders_box.add_child(row)
+
+
+# ---------------------------------------------------------------------------
+# Audio integration hooks (stubbed for v1).
+# When chiptune assets land, wire these to AudioStreamPlayer nodes.
+# ---------------------------------------------------------------------------
+func _on_pot_add(id: String) -> void:
+	var role: String = CheeseDB.MUSIC_COMPONENT.get(id, "?")
+	print("[audio] layer +%s (%s)" % [id, role])
+
+
+func _on_pot_clear() -> void:
+	print("[audio] pot cleared — silence")
+
+
+func _on_cook_start(target: String) -> void:
+	print("[audio] cook start, target=", target if target != "" else "<mismatch>")
+
+
+func _on_cook_success(cheese_name: String) -> void:
+	var tune: String = CheeseDB.CHEESE_TUNE.get(cheese_name, "")
+	print("[audio] clean chiptune for %s -> %s" % [cheese_name, tune])
+
+
+func _on_cook_fail() -> void:
+	print("[audio] distorted chiptune (wrong recipe)")
