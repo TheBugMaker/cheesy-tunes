@@ -19,7 +19,7 @@ var cooking: bool = false
 var cook_progress: float = 0.0
 var cook_target: String = ""          # cheese name, "" if mismatch
 var stock: Dictionary = {}            # cheese_name -> int
-var orders: Array = []                # {cheese, time_left, time_max, payout}
+var orders: Array = []                # {cheese, time_left, time_max, payout, time_label, reveal_button, revealed}
 var running: bool = false
 
 # --- node references ---
@@ -35,6 +35,10 @@ var inventory_row: HBoxContainer
 var ingredient_ring: GridContainer
 var overlay: Panel
 var overlay_label: Label
+
+# --- custom tooltip references ---
+var custom_tooltip: PanelContainer
+var custom_tooltip_label: Label
 
 var inv_labels: Dictionary = {}       # ingredient_id -> Label (count in inventory row)
 var buy_buttons: Dictionary = {}      # ingredient_id -> Button (buy [+])
@@ -54,6 +58,11 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if not running:
 		return
+		
+	# Frame-by-frame mouse tracking for instant tooltips
+	if custom_tooltip and custom_tooltip.visible:
+		custom_tooltip.global_position = get_global_mouse_position() + Vector2(16, 16)
+		
 	_tick_cook(delta)
 	_tick_orders(delta)
 	_auto_fulfill()
@@ -136,11 +145,27 @@ func _build_ui() -> void:
 	col.add_child(scroll)
 	_build_buy_strip()
 
+	# --- Instant Custom Tooltip Box (Minecraft style) ---
+	custom_tooltip = PanelContainer.new()
+	var tooltip_sb := StyleBoxFlat.new()
+	tooltip_sb.bg_color = Color("111111", 0.9)
+	tooltip_sb.set_border_width_all(1)
+	tooltip_sb.border_color = Color("555555")
+	tooltip_sb.set_content_margin_all(6)
+	custom_tooltip.add_theme_stylebox_override("panel", tooltip_sb)
+	custom_tooltip.visible = false
+	custom_tooltip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
+	custom_tooltip_label = Label.new()
+	custom_tooltip_label.add_theme_font_size_override("font_size", 14)
+	custom_tooltip_label.add_theme_color_override("font_color", Color("ff5555")) # Warning red
+	custom_tooltip.add_child(custom_tooltip_label)
+	add_child(custom_tooltip)
+
 	_build_overlay()
 
 
 func _build_pot_area() -> Control:
-	# Pot on top, then a flow of every active ingredient below it so nothing is hidden.
 	var wrap := VBoxContainer.new()
 	wrap.add_theme_constant_override("separation", 10)
 	wrap.add_child(_make_label("Pot — click ingredients to compose, then Cook", 18))
@@ -328,7 +353,6 @@ func _style_tile_button(btn: Button, color: Color) -> void:
 # ---------------------------------------------------------------------------
 # Ingredient sets
 # ---------------------------------------------------------------------------
-## Ingredients used by any active cheese — what the player buys & composes with.
 func _all_ingredient_ids() -> PackedStringArray:
 	var seen := {}
 	for cheese in CheeseDB.get_active_cheeses():
@@ -361,6 +385,7 @@ func _on_buy(id: String) -> void:
 	inventory[id] = int(inventory.get(id, 0)) + 1
 	_refresh_money()
 	_refresh_inventory()
+	_update_hint_buttons_disabled_state()
 
 
 func _on_ring_clicked(id: String) -> void:
@@ -427,13 +452,26 @@ func _finish_cook() -> void:
 
 func _tick_orders(delta: float) -> void:
 	var i := orders.size() - 1
+	var structure_changed := false
+	
 	while i >= 0:
 		orders[i]["time_left"] -= delta
 		if orders[i]["time_left"] <= 0.0:
 			orders.remove_at(i)
+			structure_changed = true
+		else:
+			if orders[i].has("time_label") and is_instance_valid(orders[i]["time_label"]):
+				var lbl: Label = orders[i]["time_label"]
+				lbl.text = "%ds" % int(ceil(orders[i]["time_left"]))
+				if orders[i]["time_left"] < orders[i]["time_max"] * 0.33:
+					lbl.modulate = Color(1, 0.55, 0.55)
+				else:
+					lbl.modulate = Color(1, 1, 1)
 		i -= 1
-	_refill_orders()
-	_refresh_orders()
+		
+	if structure_changed or orders.size() < MAX_ORDERS:
+		_refill_orders()
+		_refresh_orders()
 
 
 func _auto_fulfill() -> void:
@@ -461,6 +499,7 @@ func _refill_orders() -> void:
 	var active := CheeseDB.get_active_cheeses()
 	if active.is_empty():
 		return
+	var spawned_new := false
 	while orders.size() < MAX_ORDERS:
 		var cheese: Dictionary = active[randi() % active.size()]
 		var cheese_name: String = cheese["name"]
@@ -472,10 +511,14 @@ func _refill_orders() -> void:
 			"time_left": t,
 			"time_max": t,
 			"payout": payout,
+			"revealed": false,
 		})
+		spawned_new = true
+		
+	if spawned_new:
+		_refresh_orders()
 
 
-## Returns the cheese name whose recipe set-equals `current_pot`, or "" if none.
 func _match_recipe(current_pot: Array[String]) -> String:
 	for cheese in CheeseDB.get_active_cheeses():
 		if _same_set(current_pot, cheese["recipe"]):
@@ -493,19 +536,47 @@ func _same_set(a: Array, b: Array) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Hint Button Trigger Callbacks
+# ---------------------------------------------------------------------------
+func _on_reveal_recipe_pressed(order: Dictionary) -> void:
+	if money < 5:
+		return
+	money -= 5
+	order["revealed"] = true
+	_refresh_all()
+
+
+func _update_hint_buttons_disabled_state() -> void:
+	for order in orders:
+		if order.has("reveal_button") and is_instance_valid(order["reveal_button"]):
+			order["reveal_button"].disabled = money < 5
+
+
+# ---------------------------------------------------------------------------
+# Custom Tooltip Toggles
+# ---------------------------------------------------------------------------
+func _show_instant_tooltip(text_content: String) -> void:
+	if custom_tooltip_label and custom_tooltip:
+		custom_tooltip_label.text = text_content
+		custom_tooltip.visible = true
+
+
+func _hide_instant_tooltip() -> void:
+	if custom_tooltip:
+		custom_tooltip.visible = false
+
+
+# ---------------------------------------------------------------------------
 # Game over / restart
 # ---------------------------------------------------------------------------
 func _is_game_over() -> bool:
 	if cooking:
 		return false
-	# Any stock we hold could still fulfill an order, so we're alive.
 	for cheese_name in stock.keys():
 		if int(stock[cheese_name]) > 0:
 			return false
-	# Pot already has ingredients in it — player can still try to cook.
 	if not pot.is_empty():
 		return false
-	# Can we afford to make any cheese currently ordered?
 	for order in orders:
 		if _can_afford_recipe(order["cheese"]):
 			return false
@@ -618,6 +689,10 @@ func _refresh_stock() -> void:
 
 
 func _refresh_orders() -> void:
+	# Wipe open tooltips to avoid lingering visual glitches when UI reconstructs
+	if custom_tooltip:
+		custom_tooltip.visible = false
+
 	for child in orders_box.get_children():
 		child.queue_free()
 	if orders.is_empty():
@@ -625,26 +700,69 @@ func _refresh_orders() -> void:
 		empty.modulate = Color(1, 1, 1, 0.5)
 		orders_box.add_child(empty)
 		return
+		
 	for order in orders:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
+		
 		var name_lbl := _make_label(order["cheese"], 16)
 		name_lbl.custom_minimum_size = Vector2(110, 0)
 		row.add_child(name_lbl)
+		
 		var time_lbl := _make_label("%ds" % int(ceil(order["time_left"])), 16)
 		time_lbl.custom_minimum_size = Vector2(48, 0)
 		if order["time_left"] < order["time_max"] * 0.33:
 			time_lbl.modulate = Color(1, 0.55, 0.55)
 		row.add_child(time_lbl)
+		order["time_label"] = time_lbl
+		
 		var pay_lbl := _make_label("+$%d" % int(order["payout"]), 16)
 		pay_lbl.modulate = Color(0.7, 1.0, 0.7)
 		row.add_child(pay_lbl)
+		
+		# --- Paid Hint / Inline Text Replacement ---
+		if order.get("revealed", false):
+			var recipe_string := _get_recipe_string(order["cheese"])
+			var recipe_lbl := _make_label("[%s]" % recipe_string, 13)
+			recipe_lbl.modulate = Color("e0cb9b") 
+			row.add_child(recipe_lbl)
+		else:
+			var reveal_btn := Button.new()
+			reveal_btn.text = "+"
+			reveal_btn.focus_mode = Control.FOCUS_NONE
+			reveal_btn.disabled = money < 5
+			
+			if not reveal_btn.disabled:
+				reveal_btn.mouse_entered.connect(_show_instant_tooltip.bind("-$5"))
+				reveal_btn.mouse_exited.connect(_hide_instant_tooltip)
+				
+			reveal_btn.pressed.connect(_on_reveal_recipe_pressed.bind(order))
+			row.add_child(reveal_btn)
+			order["reveal_button"] = reveal_btn
+		
 		orders_box.add_child(row)
 
 
+func _get_recipe_string(cheese_name: String) -> String:
+	var clean_name := cheese_name.strip_edges().to_lower()
+	var ingredients: Array[String] = []
+	
+	for cheese in CheeseDB.CHEESES:
+		if cheese.get("name", "").strip_edges().to_lower() == clean_name:
+			for id in cheese.get("recipe", []):
+				if CheeseDB.TILES.has(id):
+					ingredients.append(CheeseDB.TILES[id]["label"])
+				else:
+					ingredients.append(id)
+			break
+			
+	if not ingredients.is_empty():
+		return "+".join(ingredients)
+	return "???"
+
+
 # ---------------------------------------------------------------------------
-# Audio integration hooks (stubbed for v1).
-# When chiptune assets land, wire these to AudioStreamPlayer nodes.
+# Audio integration hooks
 # ---------------------------------------------------------------------------
 func _on_pot_add(id: String) -> void:
 	var role: String = CheeseDB.MUSIC_COMPONENT.get(id, "?")
