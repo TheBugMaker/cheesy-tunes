@@ -136,9 +136,9 @@ const ART_KHUSHAAL := [
 ]
 
 const CREDITS: Array = [
-	{"name": "Ghaseen", "art": ART_GHASEEN, "tagline": "Management, Code, Design, Composition, Music, Git Maintainer"},
+	{"name": "Ghaseen", "art": ART_GHASEEN, "tagline": "Management, Code, Design, Composition, Music, Git"},
 	{"name": "Rak", "art": ART_RAK, "tagline": "Management, Production, Design, Systems, Code, UI"},
-	{"name": "Magnus", "art": ART_MAGNUS, "tagline": "Production, Design, Art"},
+	{"name": "Magnus", "art": ART_MAGNUS, "tagline": "Design, Art"},
 	{"name": "Tino", "art": ART_TINO, "tagline": "Narrative, Research, Code"},
 	{"name": "Kathi", "art": ART_KATHI, "tagline": "Code, Design"},
 	{"name": "Khushaal", "art": ART_KHUSHAAL, "tagline": "Code, Design, UI"},
