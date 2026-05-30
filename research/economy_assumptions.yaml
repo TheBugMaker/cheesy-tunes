@@ -1,0 +1,18 @@
+target_margin: 1.05
+payout_range_percent: 0.15
+process_step_bonus: 0.5
+
+raw_material_costs:
+  milk: 2
+  salt: 2
+  bacteria culture: 3
+  acid: 4
+  rennet: 4
+  white mold: 6
+  blue mold: 6
+  wine: 7
+
+ingredient_bonuses:
+  white mold: 3
+  blue mold: 4
+  wine: 5
